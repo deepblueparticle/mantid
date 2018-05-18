@@ -710,7 +710,7 @@ class Mask_ISIS(ReductionStep):
 
         return bank
 
-    def parse_instruction(self, instName, details):
+    def parse_instruction(self, instName, details): # noqa: C901
         """
             Parse an instruction line from an ISIS mask file
             @param instName Instrument name. Used for MASK Ssp command to tell what bank it refer to
@@ -1099,12 +1099,11 @@ class Mask_ISIS(ReductionStep):
         # opens an instrument showing the contents of the workspace (i.e. the instrument with masked detectors)
         instrum.view(wksp_name)
 
-    def display(self, wksp, reducer, counts=None):
+    def display(self, wksp, reducer):
         """
             Mask detectors in a workspace and display its show instrument
             @param wksp: this named workspace will be masked and displayed
             @param reducer: the reduction chain that contains all the settings
-            @param counts: optional workspace containing neutron counts data that the mask will be supperimposed on to
         """
         # apply masking to the current detector
         self.execute(reducer, wksp)
@@ -1117,49 +1116,6 @@ class Mask_ISIS(ReductionStep):
         self.execute(reducer, wksp)
         # reset the instrument to mask the current detector
         instrum.setDetector(original)
-
-        if counts:
-            Power(InputWorkspace=counts, OutputWorkspace='ones', Exponent=0)
-            Plus(LHSWorkspace=wksp, RHSWorkspace='ones', OutputWorkspace=wksp)
-
-        # Mark up "dead" detectors with error value
-        FindDeadDetectors(InputWorkspace=wksp, OutputWorkspace=wksp, LiveValue=0, DeadValue=1)
-
-        # check if we have a workspace to superimpose the mask on to
-        if counts:
-            # the code below is a proto-type for the ISIS SANS group, to make it perminent it should be improved
-
-            # create a workspace where the masked spectra have a value
-            flags = mtd[wksp]
-            # normalise that value to the data in the workspace
-            vals = mtd[counts]
-            maxval = 0
-            Xs = []
-            Ys = []
-            Es = []
-            for i in range(0, flags.getNumberHistograms()):
-                Xs.append(flags.readX(i)[0])
-                Xs.append(flags.readX(i)[1])
-                Ys.append(flags.readY(i)[0])
-                Es.append(0)
-
-                if vals.readY(i)[0] > maxval:
-                    # don't include masked or monitors
-                    if (flags.readY(i)[0] == 0) and (vals.readY(i)[0] < 5000):
-                        maxval = vals.readY(i)[0]
-
-            # now normalise to the max/5
-            maxval /= 5.0
-            for i in range(0, len(Ys)):
-                if Ys[i] != 0:
-                    Ys[i] = maxval * Ys[i] + vals.readY(i)[0]
-
-            CreateWorkspace(OutputWorkspace=wksp, DataX=Xs, DataY=Ys, DataE=Es, NSpec=len(Ys), UnitX='TOF')
-            # change the units on the workspace so it is compatible with the workspace containing counts data
-            Multiply(LHSWorkspace='ones', RHSWorkspace=wksp, OutputWorkspace='units')
-            # do the super-position and clean up
-            Minus(LHSWorkspace=counts, RHSWorkspace='units', OutputWorkspace=wksp)
-            reducer.deleteWorkspaces(['ones', 'units'])
 
         # opens an instrument showing the contents of the workspace (i.e. the instrument with masked detectors)
         instrum.view(wksp)
@@ -3314,7 +3270,7 @@ class UserFile(ReductionStep):
         self.executed = True
         return self.executed
 
-    def read_line(self, line, reducer):
+    def read_line(self, line, reducer): # noqa: C901
         # This is so that I can be sure all EOL characters have been removed
         line = line.lstrip().rstrip()
         upper_line = line.upper()
@@ -3395,6 +3351,8 @@ class UserFile(ReductionStep):
                 if det_specif == 'MERGE':
                     det_specif = 'MERGED'
                 reducer.instrument.setDetector(det_specif)
+            elif det_specif.startswith('OVERLAP'):
+                self.readFrontMergeRange(det_specif, reducer)
             else:
                 _issueWarning('Incorrectly formatted DET line, %s, line ignored' % upper_line)
 
@@ -3487,7 +3445,7 @@ class UserFile(ReductionStep):
         reducer._corr_and_scale.rescale = 100.0
 
     # Read a limit line of a mask file
-    def readLimitValues(self, limit_line, reducer):
+    def readLimitValues(self, limit_line, reducer): # noqa: C901
         limits = limit_line.split('L/')
         if len(limits) != 2:
             _issueWarning("Incorrectly formatted limit line ignored \"" + limit_line + "\"")
@@ -3585,7 +3543,7 @@ class UserFile(ReductionStep):
         else:
             _issueWarning('Error in user file after L/, "%s" is not a valid limit line' % limit_type.upper())
 
-    def _read_mon_line(self, details, reducer):
+    def _read_mon_line(self, details, reducer): # noqa: C901
 
         # MON/LENTH, MON/SPECTRUM and MON/TRANS all accept the INTERPOLATE option
         interpolate = False
@@ -3763,6 +3721,24 @@ class UserFile(ReductionStep):
                 else:
                     _issueWarning("Command: \"DET/" + details + "\" not valid. Expected format is /DET/RESCALE r")
 
+    def readFrontMergeRange(self, details, reducer):
+        """
+            Handle user commands of the type DET/OVERLAP [Q1 Q2] which are used to specify the range to merge
+
+            @param details: the contents of the line after DET/
+            @param reducer: the object that contains all the settings
+        """
+        values = details.split()
+        rAnds = reducer.instrument.getDetector('FRONT').mergeRange
+        rAnds.q_merge_range = False
+        if len(values) == 3:
+            rAnds.q_merge_range = True
+            rAnds.q_min = float(values[1])
+            rAnds.q_max = float(values[2])
+        else:
+            _issueWarning(
+                "Command: \"DET/" + details + "\" not valid. Expected format is /DET/OVERLAP q1 q2")
+
     def _read_back_line(self, arguments, reducer):
         """
             Parses a line from the settings file
@@ -3932,7 +3908,6 @@ class UserFile(ReductionStep):
         @param arguments: the arguments of a QResolution line
         @param reducer: a reducer object
         '''
-        arguments = arguments.upper()
         if arguments.find('=') == -1:
             return self._read_q_resolution_line_on_off(arguments, reducer)
 
@@ -3941,7 +3916,7 @@ class UserFile(ReductionStep):
         arguments = [element.strip() for element in arguments]
 
         # Check if it is the moderator file name, if so add it and return
-        if arguments[0].startswith('MODERATOR'):
+        if arguments[0].upper().startswith('MODERATOR'):
             # pylint: disable=bare-except
             try:
                 reducer.to_Q.set_q_resolution_moderator(file_name=arguments[1])

@@ -20,6 +20,7 @@ BANNED_FILES = ['80_tubes_Top_and_Bottom_April_2015.xml',
                 'BioSANS_exp61_scan0004_0001.xml',
                 'BioSANS_flood_data.xml',
                 'BioSANS_sample_trans.xml',
+                'C6H5Cl-Gaussian.log',
                 'CNCS_TS_2008_08_18.dat',
                 'DISF_NaF.cdl',
                 'det_corrected7.dat',
@@ -100,7 +101,20 @@ BANNED_FILES = ['80_tubes_Top_and_Bottom_April_2015.xml',
                 'Vesuvio_IP_file_test.par',
                 'IP0004_10.par',
                 'Crystalb3lypScratchAbins.out',
-                'V15_0000016544_S000_P01.raw']
+                'V15_0000016544_S000_P01.raw',
+                'TolueneTAbins.out',
+                'TolueneSmallerOrderAbins.out',
+                'TolueneLargerOrderAbins.out',
+                'TolueneScale.out',
+                'TolueneScratchAbins.out',
+                'SingleCrystalDiffuseReduction_UB.mat',
+                'Na2SiF6_DMOL3.outmol',
+                'FE_ALPHA.cif',
+                'Fe-gamma.cif',
+                'Fe-alpha.cif',
+                'Sm2O3.cif',
+                'template_ENGINX_241391_236516_North_bank.prm'
+                ]
 
 EXPECTED_EXT = '.expected'
 

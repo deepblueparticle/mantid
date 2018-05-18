@@ -172,10 +172,11 @@ public:
   void calculateCentroid(coord_t *centroid, const int runindex) const override;
   coord_t *getCentroid() const override;
   void calculateDimensionStats(MDDimensionStats *stats) const;
-  void integrateSphere(Mantid::API::CoordTransform &radiusTransform,
-                       const coord_t radiusSquared, signal_t &signal,
-                       signal_t &errorSquared,
-                       const coord_t innerRadiusSquared = 0.0) const override;
+  void integrateSphere(
+      Mantid::API::CoordTransform &radiusTransform, const coord_t radiusSquared,
+      signal_t &signal, signal_t &errorSquared,
+      const coord_t innerRadiusSquared = 0.0,
+      const bool useOnePercentBackgroundCorrection = true) const override;
   void centroidSphere(Mantid::API::CoordTransform &radiusTransform,
                       const coord_t radiusSquared, coord_t *centroid,
                       signal_t &signal) const override;
@@ -226,10 +227,10 @@ private:
 
 public:
   /// Typedef for a shared pointer to a MDBox
-  typedef boost::shared_ptr<MDBox<MDE, nd>> sptr;
+  using sptr = boost::shared_ptr<MDBox<MDE, nd>>;
 
   /// Typedef for a vector of the conatined events
-  typedef std::vector<MDE> vec_t;
+  using vec_t = std::vector<MDE>;
 };
 
 #ifndef __INTEL_COMPILER

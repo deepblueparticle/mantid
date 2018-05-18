@@ -14,6 +14,10 @@ class PearlMCAbsorption(PythonAlgorithm):
     def summary(self):
         return "Loads pre-calculated or measured absorption correction files for Pearl."
 
+    def seeAlso(self):
+        return [ "MonteCarloAbsorption", "MayersSampleCorrection",
+                 "CarpenterSampleCorrection", "VesuvioCalculateMS" ]
+
     def PyInit(self):
         # Input file
         self.declareProperty(FileProperty("Filename","", FileAction.Load, ['.out','.dat']), doc="The name of the input file.")
@@ -77,6 +81,7 @@ class PearlMCAbsorption(PythonAlgorithm):
                 input_ws.dataY(i)[j] = math.exp(-1.0*mu_values[j]*thickness)
 
         return input_ws
+
 
 #############################################################################################
 AlgorithmFactory.subscribe(PearlMCAbsorption)

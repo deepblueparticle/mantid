@@ -46,6 +46,9 @@ class ExportGeometry(PythonAlgorithm):
     def category(self):
         return "Utility\\Instrument"
 
+    def seeAlso(self):
+        return [ "LoadInstrument" ]
+
     def name(self):
         return "ExportGeometry"
 
@@ -138,5 +141,6 @@ class ExportGeometry(PythonAlgorithm):
             for component in components:
                 component = instrument.getComponentByName(component)
                 self.__writexml(handle, component)
+
 
 AlgorithmFactory.subscribe(ExportGeometry)

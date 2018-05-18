@@ -1,13 +1,13 @@
 #ifndef MANTID_ALGORITHMS_SMOOTHDATA_H_
 #define MANTID_ALGORITHMS_SMOOTHDATA_H_
 
-//----------------------------------------------------------------------
-// Includes
-//----------------------------------------------------------------------
 #include "MantidAPI/Algorithm.h"
 #include "MantidGeometry/IDTypes.h"
 
 namespace Mantid {
+namespace HistogramData {
+class Histogram;
+}
 namespace Algorithms {
 /** Smooths the data of the input workspace by making each point the mean
    average of itself and
@@ -63,6 +63,9 @@ public:
 
   /// Algorithm's version
   int version() const override { return (1); }
+  const std::vector<std::string> seeAlso() const override {
+    return {"SmoothNeighbours"};
+  }
   /// Algorithm's category for identification
   const std::string category() const override {
     return "Transforms\\Smoothing";
@@ -75,11 +78,14 @@ private:
   void exec() override;
   int validateSpectrumInGroup(size_t wi);
   // This map does not need to be ordered, just a lookup for udet
-  /// typedef for the storage of the UDET-group mapping
-  typedef std::map<detid_t, int> udet2groupmap;
+  /// type alias for the storage of the UDET-group mapping
+  using udet2groupmap = std::map<detid_t, int>;
   std::vector<int> udet2group;
   API::MatrixWorkspace_const_sptr inputWorkspace;
 };
+
+HistogramData::Histogram smooth(const HistogramData::Histogram &histogram,
+                                int npts);
 
 } // namespace Algorithms
 } // namespace Mantid

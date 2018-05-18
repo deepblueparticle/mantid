@@ -67,6 +67,8 @@ def has_tag(tag, workspace):
     :param workspace: the workspace to check.
     :return: true if the tag exists else false.
     """
+    if workspace is None:
+        return False
     check_if_valid_tag_and_workspace(tag, workspace)
     run = workspace.getRun()
     return tag in run
@@ -96,7 +98,10 @@ def has_hash(tag, hashed_value, workspace):
     if isinstance(workspace, WorkspaceGroup):
         return False
 
-    check_if_valid_tag_and_workspace(tag, workspace)
+    try:
+        check_if_valid_tag_and_workspace(tag, workspace)
+    except RuntimeError:
+        return False
 
     if not has_tag(tag, workspace):
         return False

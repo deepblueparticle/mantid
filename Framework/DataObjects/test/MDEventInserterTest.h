@@ -52,7 +52,7 @@ public:
   static void destroySuite(MDEventInserterTest *suite) { delete suite; }
 
   void test_add_md_lean_events() {
-    typedef MDEventWorkspace<MDLeanEvent<2>, 2> MDEW_LEAN_2D;
+    using MDEW_LEAN_2D = MDEventWorkspace<MDLeanEvent<2>, 2>;
 
     // Check the type deduction used internally in the MDEventInserter template.
     TS_ASSERT_EQUALS(sizeof(MDEW_LEAN_2D::MDEventType),
@@ -69,7 +69,7 @@ public:
     Mantid::coord_t coord1[2] = {-1, -1};
     float expectedSignal = 1;
     float expectedErrorSq = 2;
-    inserter.insertMDEvent(expectedSignal, expectedErrorSq, 1, 1, coord1);
+    inserter.insertMDEvent(expectedSignal, expectedErrorSq, 0, 1, coord1);
     ws2d->refreshCache();
 
     // Check the mdevent via the parent box.
@@ -78,13 +78,13 @@ public:
     TS_ASSERT_EQUALS(expectedErrorSq, ws2d->getBox()->getErrorSquared());
 
     // Add another md event
-    inserter.insertMDEvent(expectedSignal, expectedErrorSq, 1, 1, coord1);
+    inserter.insertMDEvent(expectedSignal, expectedErrorSq, 0, 1, coord1);
     ws2d->refreshCache();
     TS_ASSERT_EQUALS(2, ws2d->getNPoints());
   }
 
   void test_add_md_full_events() {
-    typedef MDEventWorkspace<MDEvent<2>, 2> MDEW_2D;
+    using MDEW_2D = MDEventWorkspace<MDEvent<2>, 2>;
 
     // Check the type deduction used internally in the MDEventInserter template.
     TS_ASSERT_EQUALS(sizeof(MDEW_2D::MDEventType),
@@ -101,7 +101,7 @@ public:
     Mantid::coord_t coord1[2] = {-1, -1};
     float expectedSignal = 1;
     float expectedErrorSq = 2;
-    inserter.insertMDEvent(expectedSignal, expectedErrorSq, 1, 1, coord1);
+    inserter.insertMDEvent(expectedSignal, expectedErrorSq, 0, 1, coord1);
     ws2d->refreshCache();
 
     // Check the mdevent via the parent box.
@@ -110,7 +110,7 @@ public:
     TS_ASSERT_EQUALS(expectedErrorSq, ws2d->getBox()->getErrorSquared());
 
     // Add another md event
-    inserter.insertMDEvent(expectedSignal, expectedErrorSq, 1, 1, coord1);
+    inserter.insertMDEvent(expectedSignal, expectedErrorSq, 0, 1, coord1);
     ws2d->refreshCache();
     TS_ASSERT_EQUALS(2, ws2d->getNPoints());
   }

@@ -191,6 +191,9 @@ class RetrieveRunInfo(PythonAlgorithm):
         return "Given a range of run numbers and an output workspace name, will compile a table of info for "+\
                "each run of the instrument you have set as default."
 
+    def seeAlso(self):
+        return [ "CreateLogPropertyTable" ]
+
     def PyInit(self):
         # Declare algorithm properties.
         self.declareProperty(
@@ -248,6 +251,7 @@ class RetrieveRunInfo(PythonAlgorithm):
             DeleteWorkspace(Workspace=temp_table_name)
 
         self.setPropertyValue('OutputWorkspace', output_ws_name)
+
 
 # Register algorthm with Mantid.
 AlgorithmFactory.subscribe(RetrieveRunInfo)

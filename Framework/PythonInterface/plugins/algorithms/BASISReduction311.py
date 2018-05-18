@@ -45,6 +45,9 @@ class BASISReduction311(PythonAlgorithm):
     def category(self):
         return "Inelastic\\Reduction"
 
+    def seeAlso(self):
+        return [ "BASISReduction" ]
+
     def name(self):
         return "BASISReduction311"
 
@@ -277,6 +280,7 @@ class BASISReduction311(PythonAlgorithm):
             api.Divide(LHSWorkspace=sam_ws,
                        RHSWorkspace=mon_ws,
                        OutputWorkspace=sam_ws)
+
 
 # Register algorithm with Mantid.
 AlgorithmFactory.subscribe(BASISReduction311)

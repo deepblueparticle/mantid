@@ -16,6 +16,9 @@ class SortDetectors(PythonAlgorithm):
         """
         return "Utility\\Sorting"
 
+    def seeAlso(self):
+        return [ "SortByQVectors","SortXAxis" ]
+
     def name(self):
         """ Return name
         """
@@ -76,5 +79,6 @@ class SortDetectors(PythonAlgorithm):
         self.setProperty("UpstreamDetectorDistances", numpy.array(updist))
         self.setProperty("DownstreamSpectra", numpy.array(downinds))
         self.setProperty("DownstreamDetectorDistances", numpy.array(downdist))
+
 
 AlgorithmFactory.subscribe(SortDetectors)

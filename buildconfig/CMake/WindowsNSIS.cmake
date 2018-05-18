@@ -10,6 +10,7 @@ set( CPACK_INSTALL_PREFIX "/")
 set( CPACK_NSIS_DISPLAY_NAME "Mantid${CPACK_PACKAGE_SUFFIX}")
 set( CPACK_PACKAGE_NAME "mantid${CPACK_PACKAGE_SUFFIX}" )
 set( CPACK_PACKAGE_INSTALL_DIRECTORY "MantidInstall${CPACK_PACKAGE_SUFFIX}")
+set( CPACK_PACKAGE_INSTALL_REGISTRY_KEY "${CPACK_PACKAGE_NAME}" )
 set( CPACK_NSIS_INSTALL_ROOT "C:")
 set( CPACK_PACKAGE_ICON "${CMAKE_CURRENT_SOURCE_DIR}/images\\\\MantidPlot_Icon_32offset.png" )
 set( CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/images\\\\MantidPlot_Icon_32offset.ico" )
@@ -133,10 +134,10 @@ install ( FILES ${CMAKE_CURRENT_SOURCE_DIR}/installers/WinInstaller/qt.conf DEST
 set ( QT_PLUGINS_IMAGEFORMAT qgif4.dll qico4.dll qjpeg4.dll qmng4.dll qsvg4.dll qtga4.dll qtiff4.dll )
 set ( QT_PLUGIN_DIR ${QT_INSTALL_PREFIX}/plugins )
 foreach( DLL ${QT_PLUGINS_IMAGEFORMAT} )
-  install ( FILES ${QT_PLUGIN_DIR}/imageformats/${DLL} DESTINATION plugins/qt/imageformats )
+  install ( FILES ${QT_PLUGIN_DIR}/imageformats/${DLL} DESTINATION plugins/qt4/imageformats )
 endforeach()
 # sqlite
-install ( FILES ${QT_PLUGIN_DIR}/sqldrivers/qsqlite4.dll DESTINATION plugins/qt/sqldrivers )
+install ( FILES ${QT_PLUGIN_DIR}/sqldrivers/qsqlite4.dll DESTINATION plugins/qt4/sqldrivers )
 
 ###########################################################################
 # Startup files

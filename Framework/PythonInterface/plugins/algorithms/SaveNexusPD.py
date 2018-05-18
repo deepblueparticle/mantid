@@ -27,6 +27,9 @@ class SaveNexusPD(mantid.api.PythonAlgorithm):
     def category(self):
         return "DataHandling\\Nexus"
 
+    def seeAlso(self):
+        return [ "SaveNexus" ]
+
     def name(self):
         return "SaveNexusPD"
 
@@ -313,6 +316,7 @@ class SaveNexusPD(mantid.api.PythonAlgorithm):
                     nxdata[field] = nxdetector[field]
 
         self._deleteTmpWksp()
+
 
 if 'h5py' in locals():
     mantid.api.AlgorithmFactory.subscribe(SaveNexusPD)

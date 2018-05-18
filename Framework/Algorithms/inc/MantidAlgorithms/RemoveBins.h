@@ -3,7 +3,6 @@
 
 #include "MantidAPI/Algorithm.h"
 #include "MantidKernel/Unit.h"
-#include "MantidKernel/cow_ptr.h"
 
 namespace Mantid {
 namespace HistogramData {
@@ -72,6 +71,9 @@ public:
 
   /// Algorithm's version for identification overriding a virtual method
   int version() const override { return 1; }
+  const std::vector<std::string> seeAlso() const override {
+    return {"CropWorkspace"};
+  }
   /// Algorithm's category for identification overriding a virtual method
   const std::string category() const override {
     return "Transforms\\Splitting";
@@ -80,9 +82,9 @@ public:
 private:
   // Overridden Algorithm methods
   void init() override;
+  std::map<std::string, std::string> validateInputs() override;
   void exec() override;
 
-  void checkProperties();
   void crop(const double &start, const double &end);
   void transformRangeUnit(const int index, double &startX, double &endX);
   void calculateDetectorPosition(const int index, double &l1, double &l2,

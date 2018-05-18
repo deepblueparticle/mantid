@@ -5,19 +5,19 @@
 
 #include "MantidAPI/DllConfig.h"
 #include "MantidAPI/IAlgorithm.h"
+#include "MantidAPI/IndexTypeProperty.h"
 #include "MantidKernel/PropertyManagerOwner.h"
 
 // -- These headers will (most-likely) be used by every inheriting algorithm
 #include "MantidAPI/AlgorithmFactory.h" //for the factory macro
 #include "MantidAPI/Progress.h"
-#include "MantidAPI/WorkspaceProperty.h"
 #include "MantidAPI/WorkspaceOpOverloads.h"
-#include "MantidKernel/MultiThreaded.h"
+#include "MantidAPI/WorkspaceProperty.h"
 #include "MantidKernel/EmptyValues.h"
+#include "MantidKernel/MultiThreaded.h"
 
 #include "MantidParallel/ExecutionMode.h"
 #include "MantidParallel/StorageMode.h"
-
 namespace boost {
 template <class T> class weak_ptr;
 }
@@ -28,13 +28,16 @@ template <class O> class ActiveStarter;
 class NotificationCenter;
 template <class C, class N> class NObserver;
 class Void;
-}
+} // namespace Poco
 
 namespace Json {
 class Value;
 }
 
 namespace Mantid {
+namespace Indexing {
+class SpectrumIndexSet;
+}
 namespace Parallel {
 class Communicator;
 }
@@ -46,48 +49,48 @@ class AlgorithmProxy;
 class AlgorithmHistory;
 
 /**
- Base class from which all concrete algorithm classes should be derived.
- In order for a concrete algorithm class to do anything
- useful the methods init() & exec()  should be overridden.
+Base class from which all concrete algorithm classes should be derived.
+In order for a concrete algorithm class to do anything
+useful the methods init() & exec()  should be overridden.
 
- Further text from Gaudi file.......
- The base class provides utility methods for accessing
- standard services (event data service etc.); for declaring
- properties which may be configured by the job options
- service; and for creating Child Algorithms.
- The only base class functionality which may be used in the
- constructor of a concrete algorithm is the declaration of
- member variables as properties. All other functionality,
- i.e. the use of services and the creation of Child Algorithms,
- may be used only in initialise() and afterwards (see the
- Gaudi user guide).
+Further text from Gaudi file.......
+The base class provides utility methods for accessing
+standard services (event data service etc.); for declaring
+properties which may be configured by the job options
+service; and for creating Child Algorithms.
+The only base class functionality which may be used in the
+constructor of a concrete algorithm is the declaration of
+member variables as properties. All other functionality,
+i.e. the use of services and the creation of Child Algorithms,
+may be used only in initialise() and afterwards (see the
+Gaudi user guide).
 
- @author Russell Taylor, Tessella Support Services plc
- @author Based on the Gaudi class of the same name (see
- http://proj-gaudi.web.cern.ch/proj-gaudi/)
- @date 12/09/2007
+@author Russell Taylor, Tessella Support Services plc
+@author Based on the Gaudi class of the same name (see
+http://proj-gaudi.web.cern.ch/proj-gaudi/)
+@date 12/09/2007
 
- Copyright &copy; 2007-10 ISIS Rutherford Appleton Laboratory, NScD Oak Ridge
- National Laboratory & European Spallation Source
+Copyright &copy; 2007-10 ISIS Rutherford Appleton Laboratory, NScD Oak Ridge
+National Laboratory & European Spallation Source
 
- This file is part of Mantid.
+This file is part of Mantid.
 
- Mantid is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 3 of the License, or
- (at your option) any later version.
+Mantid is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 3 of the License, or
+(at your option) any later version.
 
- Mantid is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+Mantid is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- File change history is stored at: <https://github.com/mantidproject/mantid>.
- Code Documentation is available at: <http://doxygen.mantidproject.org>
- */
+File change history is stored at: <https://github.com/mantidproject/mantid>.
+Code Documentation is available at: <http://doxygen.mantidproject.org>
+*/
 class MANTID_API_DLL Algorithm : public IAlgorithm,
                                  public Kernel::PropertyManagerOwner {
 public:
@@ -180,6 +183,9 @@ public:
   /// Function to return the separator token for the category string. A default
   /// implementation ';' is provided
   const std::string categorySeparator() const override { return ";"; }
+  /// Function to return all of the seeAlso (these are not validated) algorithms
+  /// related to this algorithm.A default implementation is provided.
+  const std::vector<std::string> seeAlso() const override { return {}; };
   /// function to return any aliases to the algorithm;  A default implementation
   /// is provided
   const std::string alias() const override { return ""; }
@@ -188,6 +194,31 @@ public:
   /// implementation is provided.
   /// Override if the algorithm is not part of the Mantid distribution.
   const std::string helpURL() const override { return ""; }
+
+  template <typename T, typename = typename std::enable_if<std::is_convertible<
+                            T *, MatrixWorkspace *>::value>::type>
+  std::tuple<boost::shared_ptr<T>, Indexing::SpectrumIndexSet>
+  getWorkspaceAndIndices(const std::string &name) const;
+
+  template <typename T1, typename T2,
+            typename = typename std::enable_if<
+                std::is_convertible<T1 *, MatrixWorkspace *>::value>::type,
+            typename = typename std::enable_if<
+                std::is_convertible<T2 *, std::string *>::value ||
+                std::is_convertible<T2 *, std::vector<int64_t> *>::value>::type>
+  void setWorkspaceInputProperties(const std::string &name,
+                                   const boost::shared_ptr<T1> &wksp,
+                                   IndexType type, const T2 &list);
+
+  template <typename T1, typename T2,
+            typename = typename std::enable_if<
+                std::is_convertible<T1 *, MatrixWorkspace *>::value>::type,
+            typename = typename std::enable_if<
+                std::is_convertible<T2 *, std::string *>::value ||
+                std::is_convertible<T2 *, std::vector<int64_t> *>::value>::type>
+  void setWorkspaceInputProperties(const std::string &name,
+                                   const std::string &wsName, IndexType type,
+                                   const T2 &list);
 
   const std::string workspaceMethodName() const override;
   const std::vector<std::string> workspaceMethodOn() const override;
@@ -213,6 +244,7 @@ public:
   void enableHistoryRecordingForChild(const bool on) override;
   bool isRecordingHistoryForChild() { return m_recordHistoryForChild; }
   void setAlwaysStoreInADS(const bool doStore) override;
+  bool getAlwaysStoreInADS() const override;
   void setRethrows(const bool rethrow) override;
 
   /** @name Asynchronous Execution */
@@ -263,12 +295,16 @@ public:
       const std::string &name, const double startProgress = -1.,
       const double endProgress = -1., const bool enableLogging = true,
       const int &version = -1);
+  void setupAsChildAlgorithm(boost::shared_ptr<Algorithm> algorithm,
+                             const double startProgress = -1.,
+                             const double endProgress = -1.,
+                             const bool enableLogging = true);
 
   /// set whether we wish to track the child algorithm's history and pass it the
   /// parent object to fill.
   void trackAlgorithmHistory(boost::shared_ptr<AlgorithmHistory> parentHist);
 
-  typedef std::vector<boost::shared_ptr<Workspace>> WorkspaceVector;
+  using WorkspaceVector = std::vector<boost::shared_ptr<Workspace>>;
 
   void findWorkspaceProperties(WorkspaceVector &inputWorkspaces,
                                WorkspaceVector &outputWorkspaces) const;
@@ -292,7 +328,6 @@ protected:
   void exec(Parallel::ExecutionMode executionMode);
   virtual void execDistributed();
   virtual void execMasterOnly();
-  virtual void execNonMaster();
 
   virtual Parallel::ExecutionMode getParallelExecutionMode(
       const std::map<std::string, Parallel::StorageMode> &storageModes) const;
@@ -375,7 +410,18 @@ protected:
   /// versions
   bool m_usingBaseProcessGroups = false;
 
+  template <typename T, const int AllowedIndexTypes = IndexType::WorkspaceIndex,
+            typename... WSPropArgs,
+            typename = typename std::enable_if<
+                std::is_convertible<T *, MatrixWorkspace *>::value>::type>
+  void declareWorkspaceInputProperties(const std::string &propertyName,
+                                       const std::string &doc,
+                                       WSPropArgs &&... wsPropArgs);
+
 private:
+  template <typename T1, typename T2, typename WsType>
+  void doSetInputProperties(const std::string &name, const T1 &wksp,
+                            IndexType type, const T2 &list);
   void lockWorkspaces();
   void unlockWorkspaces();
 
@@ -385,7 +431,7 @@ private:
 
   bool executeAsyncImpl(const Poco::Void &i);
 
-  bool doCallProcessGroups(Mantid::Kernel::DateAndTime &start_time);
+  bool doCallProcessGroups(Mantid::Types::Core::DateAndTime &start_time);
 
   // Report that the algorithm has completed.
   void reportCompleted(const double &duration,
@@ -397,6 +443,8 @@ private:
   std::map<std::string, Parallel::StorageMode>
   getInputWorkspaceStorageModes() const;
   void setupSkipValidationMasterOnly();
+
+  bool isCompoundProperty(const std::string &name) const;
 
   // --------------------- Private Members -----------------------------------
   /// Poco::ActiveMethod used to implement asynchronous execution.
@@ -414,7 +462,7 @@ private:
   bool m_isExecuted;            ///< Algorithm is executed flag
   bool m_isChildAlgorithm;      ///< Algorithm is a child algorithm
   bool m_recordHistoryForChild; ///< Flag to indicate whether history should be
-  /// recorded. Applicable to child algs only
+                                /// recorded. Applicable to child algs only
   bool m_alwaysStoreInADS; ///< Always store in the ADS, even for child algos
   bool m_runningAsync;     ///< Algorithm is running asynchronously
   std::atomic<bool> m_running; ///< Algorithm is running
@@ -423,15 +471,15 @@ private:
                                      /// closedown messages from the base class
                                      /// (default = true)
   mutable double m_startChildProgress; ///< Keeps value for algorithm's progress
-  /// at start of an Child Algorithm
-  mutable double m_endChildProgress; ///< Keeps value for algorithm's progress
-  /// at Child Algorithm's finish
-  AlgorithmID m_algorithmID; ///< Algorithm ID for managed algorithms
+                                       /// at start of an Child Algorithm
+  mutable double m_endChildProgress;   ///< Keeps value for algorithm's progress
+                                       /// at Child Algorithm's finish
+  AlgorithmID m_algorithmID;           ///< Algorithm ID for managed algorithms
   std::vector<boost::weak_ptr<IAlgorithm>> m_ChildAlgorithms; ///< A list of
-  /// weak pointers
-  /// to any child
-  /// algorithms
-  /// created
+                                                              /// weak pointers
+                                                              /// to any child
+                                                              /// algorithms
+                                                              /// created
 
   /// Vector of all the workspaces that have been read-locked
   WorkspaceVector m_readLockedWorkspaces;
@@ -450,12 +498,14 @@ private:
   /// All the groups have similar names (group_1, group_2 etc.)
   bool m_groupsHaveSimilarNames;
 
+  std::vector<std::string> m_reservedList;
+
   /// (MPI) communicator used when executing the algorithm.
   std::unique_ptr<Parallel::Communicator> m_communicator;
 };
 
 /// Typedef for a shared pointer to an Algorithm
-typedef boost::shared_ptr<Algorithm> Algorithm_sptr;
+using Algorithm_sptr = boost::shared_ptr<Algorithm>;
 
 } // namespace API
 } // namespace Mantid

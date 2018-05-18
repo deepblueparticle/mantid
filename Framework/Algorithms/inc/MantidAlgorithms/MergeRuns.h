@@ -1,17 +1,12 @@
 #ifndef MANTID_ALGORITHMS_MERGERUNS_H_
 #define MANTID_ALGORITHMS_MERGERUNS_H_
 
-#include <list>
-#include <vector>
-#include <boost/shared_ptr.hpp>
 #include <MantidAPI/MatrixWorkspace.h>
 #include "MantidAPI/MultiPeriodGroupAlgorithm.h"
 #include "MantidAPI/WorkspaceHistory.h"
 #include "MantidDataObjects/EventWorkspace.h"
+#include "MantidGeometry/Instrument/DetectorInfo.h"
 #include "MantidKernel/System.h"
-#include <boost/shared_ptr.hpp>
-#include <list>
-#include <vector>
 
 namespace Mantid {
 namespace API {
@@ -66,12 +61,6 @@ namespace Algorithms {
     File change history is stored at: <https://github.com/mantidproject/mantid>
     Code Documentation is available at: <http://doxygen.mantidproject.org>
 */
-namespace MergeRunsOptions {
-const std::string SKIP_BEHAVIOUR = "Skip File";
-const std::string STOP_BEHAVIOUR = "Stop";
-const std::string REBIN_BEHAVIOUR = "Rebin";
-const std::string FAIL_BEHAVIOUR = "Fail";
-}
 
 class DLLExport MergeRuns : public API::MultiPeriodGroupAlgorithm {
 public:
@@ -85,6 +74,9 @@ public:
 
   /// Algorithm's version for identification overriding a virtual method
   int version() const override { return 1; }
+  const std::vector<std::string> seeAlso() const override {
+    return {"ConjoinWorkspaces"};
+  }
   /// Algorithm's category for identification overriding a virtual method
   const std::string category() const override { return "Transforms\\Merging"; }
   // Overriden MultiPeriodGroupAlgorithm method.
@@ -103,14 +95,11 @@ private:
   void buildAdditionTables();
   // Overriden MultiPeriodGroupAlgorithm method.
   std::string fetchInputPropertyName() const override;
-  /// test the compatibility of the given workspace with others
-  void testCompatibility(API::MatrixWorkspace_const_sptr ws,
-                         const std::string &xUnitID, const std::string &YUnit,
-                         const bool dist, const std::string instrument) const;
+
   /// An addition table is a list of pairs: First int = workspace index in the
   /// EW being added, Second int = workspace index to which it will be added in
   /// the OUTPUT EW. -1 if it should add a new entry at the end.
-  typedef std::vector<std::pair<int, int>> AdditionTable;
+  using AdditionTable = std::vector<std::pair<int, int>>;
   /// Copy the history from the input workspaces to the output workspaces
   template <typename Container>
   void copyHistoryFromInputWorkspaces(const Container &workspaces) {
@@ -137,8 +126,6 @@ private:
 
   // Methods called by exec()
   using Mantid::API::Algorithm::validateInputs;
-  std::list<API::MatrixWorkspace_sptr>
-  validateInputs(const std::vector<std::string> &inputWorkspaces);
   bool validateInputsForEventWorkspaces(
       const std::vector<std::string> &inputWorkspaces);
   void calculateRebinParams(const API::MatrixWorkspace_const_sptr &ws1,
@@ -156,6 +143,9 @@ private:
   API::MatrixWorkspace_sptr
   rebinInput(const API::MatrixWorkspace_sptr &workspace,
              const std::vector<double> &params);
+  API::MatrixWorkspace_sptr
+  buildScanningOutputWorkspace(const API::MatrixWorkspace_sptr &outWS,
+                               const API::MatrixWorkspace_sptr &addee);
   /// Progress reporting
   std::unique_ptr<API::Progress> m_progress;
 
@@ -167,6 +157,12 @@ private:
   std::vector<AdditionTable> m_tables;
   /// Total number of histograms in the output workspace
   size_t m_outputSize = 0;
+
+  std::vector<SpectrumDefinition>
+  buildScanIntervals(const std::vector<SpectrumDefinition> &addeeSpecDefs,
+                     const Geometry::DetectorInfo &addeeDetInfo,
+                     const Geometry::DetectorInfo &outDetInfo,
+                     const Geometry::DetectorInfo &newOutDetInfo);
 };
 
 } // namespace Algorithm

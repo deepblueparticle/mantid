@@ -9,8 +9,8 @@
 #include "MantidAPI/WorkspaceHistory.h"
 
 #include "MantidKernel/ConfigService.h"
-#include "MantidKernel/EmptyValues.h"
 #include "MantidKernel/DateAndTime.h"
+#include "MantidKernel/EmptyValues.h"
 #include "MantidKernel/MultiThreaded.h"
 #include "MantidKernel/Strings.h"
 #include "MantidKernel/Timer.h"
@@ -21,16 +21,19 @@
 #include <boost/algorithm/string/regex.hpp>
 #include <boost/weak_ptr.hpp>
 
+#include <MantidKernel/StringTokenizer.h>
 #include <Poco/ActiveMethod.h>
 #include <Poco/ActiveResult.h>
 #include <Poco/NotificationCenter.h>
 #include <Poco/RWLock.h>
-#include <MantidKernel/StringTokenizer.h>
 #include <Poco/Void.h>
 
 #include <json/json.h>
 
 #include <map>
+
+// Index property handling template definitions
+#include "MantidAPI/Algorithm.tcc"
 
 using namespace Mantid::Kernel;
 
@@ -54,7 +57,7 @@ public:
 private:
   const std::string &m_value;
 };
-}
+} // namespace
 
 // Doxygen can't handle member specialization at the moment:
 // https://bugzilla.gnome.org/show_bug.cgi?id=406027
@@ -88,7 +91,7 @@ Algorithm::Algorithm()
       m_log("Algorithm"), g_log(m_log), m_groupSize(0), m_executeAsync(nullptr),
       m_notificationCenter(nullptr), m_progressObserver(nullptr),
       m_isInitialized(false), m_isExecuted(false), m_isChildAlgorithm(false),
-      m_recordHistoryForChild(false), m_alwaysStoreInADS(false),
+      m_recordHistoryForChild(false), m_alwaysStoreInADS(true),
       m_runningAsync(false), m_running(false), m_rethrow(false),
       m_isAlgStartupLoggingEnabled(true), m_startChildProgress(0.),
       m_endChildProgress(0.), m_algorithmID(this), m_singleGroup(-1),
@@ -128,16 +131,19 @@ void Algorithm::setExecuted(bool state) { m_isExecuted = state; }
 
 //---------------------------------------------------------------------------------------------
 /** To query whether algorithm is a child.
-*  @returns true - the algorithm is a child algorithm.  False - this is a full
-* managed algorithm.
-*/
+ *  @returns true - the algorithm is a child algorithm.  False - this is a full
+ * managed algorithm.
+ */
 bool Algorithm::isChild() const { return m_isChildAlgorithm; }
 
 /** To set whether algorithm is a child.
-*  @param isChild :: True - the algorithm is a child algorithm.  False - this is
-* a full managed algorithm.
-*/
-void Algorithm::setChild(const bool isChild) { m_isChildAlgorithm = isChild; }
+ *  @param isChild :: True - the algorithm is a child algorithm.  False - this
+ * is a full managed algorithm.
+ */
+void Algorithm::setChild(const bool isChild) {
+  m_isChildAlgorithm = isChild;
+  this->setAlwaysStoreInADS(!isChild);
+}
 
 /**
  * Change the state of the history recording flag. Only applicable for
@@ -156,6 +162,11 @@ void Algorithm::enableHistoryRecordingForChild(const bool on) {
 void Algorithm::setAlwaysStoreInADS(const bool doStore) {
   m_alwaysStoreInADS = doStore;
 }
+
+/** Returns true if we always store in the AnalysisDataService.
+ *  @return true if output is saved to the AnalysisDataService.
+ */
+bool Algorithm::getAlwaysStoreInADS() const { return m_alwaysStoreInADS; }
 
 /** Set whether the algorithm will rethrow exceptions
  * @param rethrow :: true if you want to rethrow exception.
@@ -188,7 +199,7 @@ void Algorithm::removeObserver(const Poco::AbstractObserver &observer) const {
  * @param estimatedTime :: Optional estimated time to completion
  * @param progressPrecision :: optional, int number of digits after the decimal
  * point to show.
-*/
+ */
 void Algorithm::progress(double p, const std::string &msg, double estimatedTime,
                          int progressPrecision) {
   notificationCenter().postNotification(
@@ -244,13 +255,13 @@ const std::string Algorithm::workspaceMethodInputProperty() const { return ""; }
 
 //---------------------------------------------------------------------------------------------
 /** Initialization method invoked by the framework. This method is responsible
-*  for any bookkeeping of initialization required by the framework itself.
-*  It will in turn invoke the init() method of the derived algorithm,
-*  and of any Child Algorithms which it creates.
-*  @throw runtime_error Thrown if algorithm or Child Algorithm cannot be
-*initialised
-*
-*/
+ *  for any bookkeeping of initialization required by the framework itself.
+ *  It will in turn invoke the init() method of the derived algorithm,
+ *  and of any Child Algorithms which it creates.
+ *  @throw runtime_error Thrown if algorithm or Child Algorithm cannot be
+ *initialised
+ *
+ */
 void Algorithm::initialize() {
   // Bypass the initialization if the algorithm has already been initialized.
   if (m_isInitialized)
@@ -416,16 +427,17 @@ void Algorithm::unlockWorkspaces() {
 
 //---------------------------------------------------------------------------------------------
 /** The actions to be performed by the algorithm on a dataset. This method is
-*  invoked for top level algorithms by the application manager.
-*  This method invokes exec() method.
-*  For Child Algorithms either the execute() method or exec() method
-*  must be EXPLICITLY invoked by  the parent algorithm.
-*
-*  @throw runtime_error Thrown if algorithm or Child Algorithm cannot be
-*executed
-*  @return true if executed successfully.
-*/
+ *  invoked for top level algorithms by the application manager.
+ *  This method invokes exec() method.
+ *  For Child Algorithms either the execute() method or exec() method
+ *  must be EXPLICITLY invoked by  the parent algorithm.
+ *
+ *  @throw runtime_error Thrown if algorithm or Child Algorithm cannot be
+ *executed
+ *  @return true if executed successfully.
+ */
 bool Algorithm::execute() {
+  Timer timer;
   AlgorithmManager::Instance().notifyAlgorithmStarting(this->getAlgorithmID());
   {
     DeprecatedAlgorithm *depo = dynamic_cast<DeprecatedAlgorithm *>(this);
@@ -434,7 +446,7 @@ bool Algorithm::execute() {
   }
 
   notificationCenter().postNotification(new StartedNotification(this));
-  Mantid::Kernel::DateAndTime startTime;
+  Mantid::Types::Core::DateAndTime startTime;
 
   // Return a failure if the algorithm hasn't been initialized
   if (!isInitialized()) {
@@ -449,6 +461,8 @@ bool Algorithm::execute() {
     logAlgorithmInfo();
 
   // Check all properties for validity
+  constexpr bool resetTimer{true};
+  float timingInit = timer.elapsed(resetTimer);
   if (!validateProperties()) {
     // Reset name on input workspaces to trigger attempt at collection from ADS
     const std::vector<Property *> &props = getProperties();
@@ -466,6 +480,7 @@ bool Algorithm::execute() {
       throw std::runtime_error("Some invalid Properties found");
     }
   }
+  const float timingPropertyValidation = timer.elapsed(resetTimer);
 
   // ----- Check for processing groups -------------
   // default true so that it has the right value at the check below the catch
@@ -487,9 +502,15 @@ bool Algorithm::execute() {
     return false;
   }
 
+  const auto executionMode = getExecutionMode();
+
+  timingInit += timer.elapsed(resetTimer);
   // ----- Perform validation of the whole set of properties -------------
-  if (!callProcessGroups) // for groups this is called on each workspace
-                          // separately
+  if ((!callProcessGroups) &&
+      (executionMode != Parallel::ExecutionMode::MasterOnly ||
+       communicator().rank() ==
+           0)) // for groups this is called on each workspace
+               // separately
   {
     std::map<std::string, std::string> errors = this->validateInputs();
     if (!errors.empty()) {
@@ -515,6 +536,7 @@ bool Algorithm::execute() {
       }
     }
   }
+  const float timingInputValidation = timer.elapsed(resetTimer);
 
   if (trackingHistory()) {
     // count used for defining the algorithm execution order
@@ -538,6 +560,7 @@ bool Algorithm::execute() {
 
   // Read or write locks every input/output workspace
   this->lockWorkspaces();
+  timingInit += timer.elapsed(resetTimer);
 
   // Invoke exec() method of derived class and catch all uncaught exceptions
   try {
@@ -546,16 +569,16 @@ bool Algorithm::execute() {
         m_running = true;
       }
 
-      startTime = Mantid::Kernel::DateAndTime::getCurrentTime();
-      // Start a timer
-      Timer timer;
+      startTime = Mantid::Types::Core::DateAndTime::getCurrentTime();
       // Call the concrete algorithm's exec method
-      this->exec(getExecutionMode());
+      this->exec(executionMode);
       registerFeatureUsage();
       // Check for a cancellation request in case the concrete algorithm doesn't
       interruption_point();
-      // Get how long this algorithm took to run
-      const float duration = timer.elapsed();
+      const float timingExec = timer.elapsed(resetTimer);
+      // The total runtime including all init steps is used for general logging.
+      const float duration = timingInit + timingPropertyValidation +
+                             timingInputValidation + timingExec;
       // need it to throw before trying to run fillhistory() on an algorithm
       // which has failed
       if (trackingHistory() && m_history) {
@@ -565,15 +588,22 @@ bool Algorithm::execute() {
         linkHistoryWithLastChild();
       }
 
-      // Put any output workspaces into the AnalysisDataService - if this is not
-      // a child algorithm
-      if (!isChild() || m_alwaysStoreInADS)
+      // Put the output workspaces into the AnalysisDataService - if requested
+      if (m_alwaysStoreInADS)
         this->store();
 
       // RJT, 19/3/08: Moved this up from below the catch blocks
       setExecuted(true);
 
       // Log that execution has completed.
+      getLogger().debug("Time to validate properties: " +
+                        std::to_string(timingPropertyValidation) +
+                        " seconds\n" + "Time for other input validation: " +
+                        std::to_string(timingInputValidation) + " seconds\n" +
+                        "Time for other initialization: " +
+                        std::to_string(timingInit) + " seconds\n" +
+                        "Time to run exec: " + std::to_string(timingExec) +
+                        " seconds\n");
       reportCompleted(duration);
     } catch (std::runtime_error &ex) {
       this->unlockWorkspaces();
@@ -665,8 +695,9 @@ void Algorithm::executeAsChildAlg() {
 
 //---------------------------------------------------------------------------------------------
 /** Stores any output workspaces into the AnalysisDataService
-*  @throw std::runtime_error If unable to successfully store an output workspace
-*/
+ *  @throw std::runtime_error If unable to successfully store an output
+ * workspace
+ */
 void Algorithm::store() {
   const std::vector<Property *> &props = getProperties();
   std::vector<int> groupWsIndicies;
@@ -709,22 +740,22 @@ void Algorithm::store() {
 
 //---------------------------------------------------------------------------------------------
 /** Create a Child Algorithm.  A call to this method creates a child algorithm
-*object.
-*  Using this mechanism instead of creating daughter
-*  algorithms directly via the new operator is prefered since then
-*  the framework can take care of all of the necessary book-keeping.
-*
-*  @param name ::           The concrete algorithm class of the Child Algorithm
-*  @param startProgress ::  The percentage progress value of the overall
-*algorithm where this child algorithm starts
-*  @param endProgress ::    The percentage progress value of the overall
-*algorithm where this child algorithm ends
-*  @param enableLogging ::  Set to false to disable logging from the child
-*algorithm
-*  @param version ::        The version of the child algorithm to create. By
-*default gives the latest version.
-*  @return shared pointer to the newly created algorithm object
-*/
+ *object.
+ *  Using this mechanism instead of creating daughter
+ *  algorithms directly via the new operator is prefered since then
+ *  the framework can take care of all of the necessary book-keeping.
+ *
+ *  @param name ::           The concrete algorithm class of the Child Algorithm
+ *  @param startProgress ::  The percentage progress value of the overall
+ *algorithm where this child algorithm starts
+ *  @param endProgress ::    The percentage progress value of the overall
+ *algorithm where this child algorithm ends
+ *  @param enableLogging ::  Set to false to disable logging from the child
+ *algorithm
+ *  @param version ::        The version of the child algorithm to create. By
+ *default gives the latest version.
+ *  @return shared pointer to the newly created algorithm object
+ */
 Algorithm_sptr Algorithm::createChildAlgorithm(const std::string &name,
                                                const double startProgress,
                                                const double endProgress,
@@ -732,6 +763,20 @@ Algorithm_sptr Algorithm::createChildAlgorithm(const std::string &name,
                                                const int &version) {
   Algorithm_sptr alg =
       AlgorithmManager::Instance().createUnmanaged(name, version);
+  setupAsChildAlgorithm(alg, startProgress, endProgress, enableLogging);
+  return alg;
+}
+
+/** Setup algorithm as child algorithm.
+ *
+ * Used internally by createChildAlgorithm. Arguments are as documented there.
+ * Can also be used manually for algorithms created otherwise. This allows
+ * running algorithms that are not declared into the factory as child
+ * algorithms. */
+void Algorithm::setupAsChildAlgorithm(Algorithm_sptr alg,
+                                      const double startProgress,
+                                      const double endProgress,
+                                      const bool enableLogging) {
   // set as a child
   alg->setChild(true);
   alg->setLogging(enableLogging);
@@ -740,8 +785,8 @@ Algorithm_sptr Algorithm::createChildAlgorithm(const std::string &name,
   try {
     alg->initialize();
   } catch (std::runtime_error &) {
-    throw std::runtime_error("Unable to initialise Child Algorithm '" + name +
-                             "'");
+    throw std::runtime_error("Unable to initialise Child Algorithm '" +
+                             alg->name() + "'");
   }
 
   // If output workspaces are nameless, give them a temporary name to satisfy
@@ -750,7 +795,7 @@ Algorithm_sptr Algorithm::createChildAlgorithm(const std::string &name,
   for (auto prop : props) {
     auto wsProp = dynamic_cast<IWorkspaceProperty *>(prop);
     if (prop->direction() == Mantid::Kernel::Direction::Output && wsProp) {
-      if (prop->value().empty()) {
+      if (prop->value().empty() && !wsProp->isOptional()) {
         prop->createTemporaryValue();
       }
     }
@@ -772,8 +817,6 @@ Algorithm_sptr Algorithm::createChildAlgorithm(const std::string &name,
   PARALLEL_CRITICAL(Algorithm_StoreWeakPtr) {
     m_ChildAlgorithms.push_back(weakPtr);
   }
-
-  return alg;
 }
 
 //=============================================================================================
@@ -793,9 +836,9 @@ std::string Algorithm::toString() const {
 }
 
 /**
-* Serialize this object to a json object)
-* @returns This object serialized as a json object
-*/
+ * Serialize this object to a json object)
+ * @returns This object serialized as a json object
+ */
 ::Json::Value Algorithm::toJson() const {
   ::Json::Value root;
 
@@ -848,12 +891,12 @@ IAlgorithm_sptr Algorithm::fromHistory(const AlgorithmHistory &history) {
 //--------------------------------------------------------------------------------------------
 /** De-serializes the algorithm from a string
  *
-* @param input :: An input string in the format. The format is
-*        AlgorithmName.version(prop1=value1,prop2=value2,...). If .version is
-*not found the
-*        highest found is used.
-* @return A pointer to a managed algorithm object
-*/
+ * @param input :: An input string in the format. The format is
+ *        AlgorithmName.version(prop1=value1,prop2=value2,...). If .version is
+ *not found the
+ *        highest found is used.
+ * @return A pointer to a managed algorithm object
+ */
 IAlgorithm_sptr Algorithm::fromString(const std::string &input) {
   ::Json::Value root;
   ::Json::Reader reader;
@@ -893,10 +936,11 @@ void Algorithm::initializeFromProxy(const AlgorithmProxy &proxy) {
   setLoggingOffset(proxy.getLoggingOffset());
   setAlgStartupLogging(proxy.getAlgStartupLogging());
   setChild(proxy.isChild());
+  setAlwaysStoreInADS(proxy.getAlwaysStoreInADS());
 }
 
 /** Fills History, Algorithm History and Algorithm Parameters
-*/
+ */
 void Algorithm::fillHistory() {
   // this is not a child algorithm. Add the history algorithm to the
   // WorkspaceHistory object.
@@ -949,14 +993,13 @@ void Algorithm::fillHistory() {
 }
 
 /**
-* Link the name of the output workspaces on this parent algorithm.
-* with the last child algorithm executed to ensure they match in the history.
-*
-* This solves the case where child algorithms use a temporary name and this
-* name needs to match the output name of the parent algorithm so the history can
-*be
-* re-run.
-*/
+ * Link the name of the output workspaces on this parent algorithm.
+ * with the last child algorithm executed to ensure they match in the history.
+ *
+ * This solves the case where child algorithms use a temporary name and this
+ * name needs to match the output name of the parent algorithm so the history
+ *can be re-run.
+ */
 void Algorithm::linkHistoryWithLastChild() {
   if (m_recordHistoryForChild) {
     // iterate over the algorithms output workspaces
@@ -1002,9 +1045,9 @@ void Algorithm::linkHistoryWithLastChild() {
 }
 
 /** Indicates that this algrithms history should be tracked regardless of if it
-* is a child.
-*  @param parentHist :: the parent algorithm history object the history in.
-*/
+ * is a child.
+ *  @param parentHist :: the parent algorithm history object the history in.
+ */
 void Algorithm::trackAlgorithmHistory(
     boost::shared_ptr<AlgorithmHistory> parentHist) {
   enableHistoryRecordingForChild(true);
@@ -1012,17 +1055,17 @@ void Algorithm::trackAlgorithmHistory(
 }
 
 /** Check if we are tracking history for thus algorithm
-*  @return if we are tracking the history of this algorithm
-*/
+ *  @return if we are tracking the history of this algorithm
+ */
 bool Algorithm::trackingHistory() {
   return (!isChild() || m_recordHistoryForChild);
 }
 
 /** Populate lists of the input & output workspace properties.
-*  (InOut workspaces go in both lists)
-*  @param inputWorkspaces ::  A reference to a vector for the input workspaces
-*  @param outputWorkspaces :: A reference to a vector for the output workspaces
-*/
+ *  (InOut workspaces go in both lists)
+ *  @param inputWorkspaces ::  A reference to a vector for the input workspaces
+ *  @param outputWorkspaces :: A reference to a vector for the output workspaces
+ */
 void Algorithm::findWorkspaceProperties(
     std::vector<Workspace_sptr> &inputWorkspaces,
     std::vector<Workspace_sptr> &outputWorkspaces) const {
@@ -1202,13 +1245,14 @@ bool Algorithm::checkGroups() {
  *
  * @return whether processGroups succeeds.
  */
-bool Algorithm::doCallProcessGroups(Mantid::Kernel::DateAndTime &startTime) {
+bool Algorithm::doCallProcessGroups(
+    Mantid::Types::Core::DateAndTime &startTime) {
   // In the base implementation of processGroups, this normally calls
   // this->execute() again on each member of the group. Other algorithms may
   // choose to override that behavior (examples: CompareWorkspaces,
   // CheckWorkspacesMatch, RenameWorkspace)
 
-  startTime = Mantid::Kernel::DateAndTime::getCurrentTime();
+  startTime = Mantid::Types::Core::DateAndTime::getCurrentTime();
   // Start a timer
   Timer timer;
 
@@ -1241,7 +1285,7 @@ bool Algorithm::doCallProcessGroups(Mantid::Kernel::DateAndTime &startTime) {
 
   if (completed) {
     // in the base processGroups each individual exec stores its outputs
-    if (!m_usingBaseProcessGroups && (!isChild() || m_alwaysStoreInADS))
+    if (!m_usingBaseProcessGroups && m_alwaysStoreInADS)
       this->store();
 
     // Get how long this algorithm took to run
@@ -1277,7 +1321,7 @@ bool Algorithm::processGroups() {
   // ---------- Create all the output workspaces ----------------------------
   for (auto &pureOutputWorkspaceProp : m_pureOutputWorkspaceProps) {
     Property *prop = dynamic_cast<Property *>(pureOutputWorkspaceProp);
-    if (prop) {
+    if (prop && !prop->value().empty()) {
       auto outWSGrp = boost::make_shared<WorkspaceGroup>();
       outGroups.push_back(outWSGrp);
       // Put the GROUP in the ADS
@@ -1327,7 +1371,11 @@ bool Algorithm::processGroups() {
         // Set the property using the name of that workspace
         if (Property *prop =
                 dynamic_cast<Property *>(m_inputWorkspaceProps[iwp])) {
-          alg->setPropertyValue(prop->name(), ws->getName());
+          if (ws->getName().empty()) {
+            alg->setProperty(prop->name(), ws);
+          } else {
+            alg->setPropertyValue(prop->name(), ws->getName());
+          }
         } else {
           throw std::logic_error("Found a Workspace property which doesn't "
                                  "inherit from Property.");
@@ -1342,6 +1390,8 @@ bool Algorithm::processGroups() {
               dynamic_cast<Property *>(m_pureOutputWorkspaceProps[owp])) {
         // Default name = "in1_in2_out"
         const std::string inName = prop->value();
+        if (inName.empty())
+          continue;
         std::string outName;
         if (m_groupsHaveSimilarNames) {
           outName.append(inName).append("_").append(
@@ -1391,6 +1441,10 @@ bool Algorithm::processGroups() {
     // this has to be done after execute() because a workspace must exist
     // when it is added to a group
     for (size_t owp = 0; owp < m_pureOutputWorkspaceProps.size(); owp++) {
+      Property *prop =
+          dynamic_cast<Property *>(m_pureOutputWorkspaceProps[owp]);
+      if (prop && prop->value().empty())
+        continue;
       // And add it to the output group
       outGroups[owp]->add(outputWSNames[owp]);
     }
@@ -1445,9 +1499,9 @@ void Algorithm::setOtherProperties(IAlgorithm *alg,
 
 //--------------------------------------------------------------------------------------------
 /** To query the property is a workspace property
-*  @param prop :: pointer to input properties
-*  @returns true if this is a workspace property
-*/
+ *  @param prop :: pointer to input properties
+ *  @returns true if this is a workspace property
+ */
 bool Algorithm::isWorkspaceProperty(const Kernel::Property *const prop) const {
   if (!prop) {
     return false;
@@ -1463,12 +1517,12 @@ bool Algorithm::isWorkspaceProperty(const Kernel::Property *const prop) const {
 //=============================================================================================
 namespace {
 /**
-* A object to set the flag marking asynchronous running correctly
-*/
+ * A object to set the flag marking asynchronous running correctly
+ */
 struct AsyncFlagHolder {
   /** Constructor
-  * @param A :: reference to the running flag
-  */
+   * @param A :: reference to the running flag
+   */
   explicit AsyncFlagHolder(bool &running_flag) : m_running_flag(running_flag) {
     m_running_flag = true;
   }
@@ -1481,12 +1535,12 @@ private:
   /// Running flag
   bool &m_running_flag;
 };
-}
+} // namespace
 
 //--------------------------------------------------------------------------------------------
 /**
-* Asynchronous execution
-*/
+ * Asynchronous execution
+ */
 Poco::ActiveResult<bool> Algorithm::executeAsync() {
   m_executeAsync = new Poco::ActiveMethod<bool, Poco::Void, Algorithm>(
       this, &Algorithm::executeAsyncImpl);
@@ -1496,7 +1550,7 @@ Poco::ActiveResult<bool> Algorithm::executeAsync() {
 /**Callback when an algorithm is executed asynchronously
  * @param i :: Unused argument
  * @return true if executed successfully.
-*/
+ */
 bool Algorithm::executeAsyncImpl(const Poco::Void &) {
   AsyncFlagHolder running(m_runningAsync);
   return this->execute();
@@ -1513,8 +1567,8 @@ Poco::NotificationCenter &Algorithm::notificationCenter() const {
 }
 
 /** Handles and rescales child algorithm progress notifications.
-*  @param pNf :: The progress notification from the child algorithm.
-*/
+ *  @param pNf :: The progress notification from the child algorithm.
+ */
 void Algorithm::handleChildProgressNotification(
     const Poco::AutoPtr<ProgressNotification> &pNf) {
   double p = m_startChildProgress +
@@ -1632,7 +1686,7 @@ void Algorithm::reportCompleted(const double &duration,
 }
 
 /** Registers the usage of the algorithm with the UsageService
-*/
+ */
 void Algorithm::registerFeatureUsage() const {
   if (UsageService::Instance().isEnabled()) {
     std::ostringstream oss;
@@ -1654,6 +1708,11 @@ void Algorithm::setAlgStartupLogging(const bool enabled) {
 */
 bool Algorithm::getAlgStartupLogging() const {
   return m_isAlgStartupLoggingEnabled;
+}
+
+bool Algorithm::isCompoundProperty(const std::string &name) const {
+  return std::find(m_reservedList.cbegin(), m_reservedList.cend(), name) !=
+         m_reservedList.cend();
 }
 
 /// Runs the algorithm with the specified execution mode.
@@ -1684,55 +1743,14 @@ void Algorithm::execDistributed() { exec(); }
 /** Runs the algorithm in `master-only` execution mode.
  *
  * The default implementation runs the normal exec() method on rank 0 and
- * execNonMaster() on all other ranks. Classes inheriting from Algorithm can
- * re-implement this if they support execution with multiple MPI ranks and
- * require a special implementation for master-only execution. */
+ * nothing on all other ranks. As a consequence all output properties will have
+ * their default values, such as a nullptr for output workspaces. Classes
+ * inheriting from Algorithm can re-implement this if they support execution
+ * with multiple MPI ranks and require a special implementation for master-only
+ * execution. */
 void Algorithm::execMasterOnly() {
   if (communicator().rank() == 0)
     exec();
-  else
-    execNonMaster();
-}
-
-/** By default execMasterOnly() runs this in `master-only` execution mode on all
- * but rank 0.
- *
- * The default implementation creates dummy workspaces for all pure output
- * workspaces. Classes inheriting from Algorithm can re-implement this if they
- * support execution with multiple MPI ranks and require a special behavior on
- * non-master ranks in master-only execution. */
-void Algorithm::execNonMaster() {
-  // If there is no output we can simply do nothing.
-  if (m_pureOutputWorkspaceProps.size() == 0)
-    return;
-  // Does Algorithm have exactly one input and one output workspace property?
-  if (m_inputWorkspaceProps.size() == 1 &&
-      m_pureOutputWorkspaceProps.size() == 1) {
-    // Does the input workspace property point to an actual workspace?
-    if (const auto &ws = m_inputWorkspaceProps.front()->getWorkspace()) {
-      if (ws->storageMode() == Parallel::StorageMode::MasterOnly) {
-        const auto &wsProp = m_pureOutputWorkspaceProps.front();
-        // This is the reverse cast of what is done in
-        // cacheWorkspaceProperties(), so it should never fail.
-        const Property &prop = dynamic_cast<Property &>(*wsProp);
-        auto clone = ws->cloneEmpty();
-        // Currently we have not implemented a proper cloneEmpty() for all
-        // workspace types, in particular the abundance of Workspace2D subtypes,
-        // so we do a safety check here.
-        if (ws->storageMode() != clone->storageMode())
-          throw std::runtime_error(clone->id() +
-                                   "::cloneEmpty() did not return a workspace "
-                                   "with the correct storage mode. Make sure "
-                                   "cloneEmpty() sets the storage mode.");
-        setProperty(prop.name(), std::move(clone));
-        return;
-      }
-    }
-  }
-  throw std::runtime_error(
-      "Attempt to run algorithm with " +
-      Parallel::toString(Parallel::ExecutionMode::MasterOnly) +
-      ": Execution in this mode not implemented.");
 }
 
 /** Get a (valid) execution mode for this algorithm.
@@ -1760,6 +1778,9 @@ Parallel::ExecutionMode Algorithm::getExecutionMode() const {
     getLogger().error() << error << "\n";
     throw(std::runtime_error(error));
   }
+  getLogger().information() << "MPI Rank " << communicator().rank()
+                            << " running with "
+                            << Parallel::toString(executionMode) << '\n';
   return executionMode;
 }
 
@@ -1776,7 +1797,14 @@ Algorithm::getInputWorkspaceStorageModes() const {
     // Check if we actually have that input workspace
     if (wsProp->getWorkspace())
       map.emplace(prop.name(), wsProp->getWorkspace()->storageMode());
+    else if (!wsProp->isOptional())
+      map.emplace(prop.name(), Parallel::StorageMode::MasterOnly);
   }
+  getLogger().information()
+      << "Input workspaces for determining execution mode:\n";
+  for (const auto &item : map)
+    getLogger().information() << "  " << item.first << " --- "
+                              << Parallel::toString(item.second) << '\n';
   return map;
 }
 
@@ -1912,6 +1940,6 @@ IPropertyManager::getValue<API::IAlgorithm_const_sptr>(
     throw std::runtime_error(message);
   }
 }
-}
+} // namespace Kernel
 
 } // namespace Mantid

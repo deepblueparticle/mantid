@@ -99,13 +99,13 @@ private:
 // NearestNeighbours implementation
 //------------------------------------------------------------------------------
 
-template <size_t N = 3> class DLLExport NearestNeighbours {
+template <int N = 3> class DLLExport NearestNeighbours {
 
 public:
   // typedefs for code brevity
-  typedef Eigen::Matrix<double, N, 1> VectorType;
-  typedef std::vector<std::tuple<VectorType, size_t, double>>
-      NearestNeighbourResults;
+  using VectorType = Eigen::Matrix<double, N, 1>;
+  using NearestNeighbourResults =
+      std::vector<std::tuple<VectorType, size_t, double>>;
 
   /** Create a nearest neighbour search object
    *

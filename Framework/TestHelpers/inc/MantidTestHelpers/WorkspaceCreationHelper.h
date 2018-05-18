@@ -14,7 +14,6 @@
 #include "MantidAPI/Algorithm.h"
 #include "MantidAPI/AnalysisDataService.h"
 #include "MantidAPI/ITableWorkspace_fwd.h"
-#include "MantidAPI/Run.h"
 #include "MantidAPI/MatrixWorkspace_fwd.h"
 #include "MantidAPI/Run.h"
 #include "MantidAPI/WorkspaceFactory.h"
@@ -23,17 +22,18 @@
 #include "MantidDataObjects/RebinnedOutput.h"
 #include "MantidDataObjects/Workspace2D.h"
 #include "MantidDataObjects/WorkspaceSingleValue.h"
-#include "MantidDataObjects/EventWorkspace.h"
-#include "MantidDataObjects/RebinnedOutput.h"
 #include "MantidDataObjects/TableWorkspace.h"
-#include "MantidDataObjects/Workspace2D.h"
-#include "MantidDataObjects/WorkspaceSingleValue.h"
 #include "MantidGeometry/Instrument/Detector.h"
+
 #include "MantidKernel/make_unique.h"
 
 namespace Mantid {
 namespace DataObjects {
 class PeaksWorkspace;
+}
+namespace Kernel {
+class Logger;
+class V3D;
 }
 }
 
@@ -89,9 +89,13 @@ struct EPPTableRow {
 
   /// Construct a row with the default values.
   EPPTableRow() = default;
-  /// Construct a row with errors set to zero.
+  /// Construct a row with default workspace index and errors set to zero.
   EPPTableRow(const double peakCentre, const double sigma, const double height,
               const FitStatus fitStatus);
+  /// Construct a row with errors set to zero.
+  EPPTableRow(const int index, const double peakCentre, const double sigma,
+              const double height, const FitStatus fitStatus);
+  int workspaceIndex = -1;
   double peakCentre = 0;
   double peakCentreError = 0;
   double sigma = 0;
@@ -102,9 +106,15 @@ struct EPPTableRow {
   FitStatus fitStatus = FitStatus::SUCCESS;
 };
 
-/// Adds a workspace to the ADS
-void storeWS(const std::string &name, Mantid::API::Workspace_sptr ws);
-/// Deletes a workspce
+/**
+ * Adds a workspace to the ADS
+ * @param name :: The name of the workspace
+ * @param ws :: The workspace object
+ */
+template <typename WSType> void storeWS(const std::string &name, WSType &ws) {
+  Mantid::API::AnalysisDataService::Instance().add(name, ws);
+}
+/// Deletes a workspace
 void removeWS(const std::string &name);
 /// Returns a workspace of a given type
 template <typename T> boost::shared_ptr<T> getWS(const std::string &name) {
@@ -131,10 +141,12 @@ Mantid::DataObjects::Workspace2D_sptr
 create2DWorkspaceWhereYIsWorkspaceIndex(int nhist, int numBoundaries);
 Mantid::DataObjects::Workspace2D_sptr create2DWorkspace123(
     int64_t nHist, int64_t nBins, bool isHist = false,
-    const std::set<int64_t> &maskedWorkspaceIndices = std::set<int64_t>());
+    const std::set<int64_t> &maskedWorkspaceIndices = std::set<int64_t>(),
+    bool hasDx = false);
 Mantid::DataObjects::Workspace2D_sptr create2DWorkspace154(
     int64_t nHist, int64_t nBins, bool isHist = false,
-    const std::set<int64_t> &maskedWorkspaceIndices = std::set<int64_t>());
+    const std::set<int64_t> &maskedWorkspaceIndices = std::set<int64_t>(),
+    bool hasDx = false);
 Mantid::DataObjects::Workspace2D_sptr create2DWorkspaceWithValuesAndXerror(
     int64_t nHist, int64_t nBins, bool isHist, double xVal, double yVal,
     double eVal, double dxVal,
@@ -160,11 +172,12 @@ create2DWorkspaceBinned(int nhist, int numVals, double x0 = 0.0,
  * Filled with Y = 2.0 and E = sqrt(2.0)w
  */
 Mantid::DataObjects::Workspace2D_sptr
-create2DWorkspaceBinned(int nhist, const int numBoundaries,
-                        const double xBoundaries[]);
+create2DWorkspaceNonUniformlyBinned(int nhist, const int numBoundaries,
+                                    const double xBoundaries[],
+                                    bool hasDx = false);
 
-struct returnOne {
-  double operator()(const double, size_t) { return 1; }
+struct ReturnOne {
+  double operator()(const double, std::size_t) { return 1.0; };
 };
 
 /**
@@ -179,11 +192,11 @@ struct returnOne {
  * @param eFunc :: A function to use for the y error values
  * @return The new workspace. The errors are set to 1.0
  */
-template <typename fT, typename gT = returnOne>
+template <typename fT, typename gT = ReturnOne>
 Mantid::DataObjects::Workspace2D_sptr
 create2DWorkspaceFromFunction(fT yFunc, int nSpec, double x0, double x1,
                               double dx, bool isHist = false,
-                              gT eFunc = returnOne()) {
+                              gT eFunc = ReturnOne()) {
   int nX = int((x1 - x0) / dx) + 1;
   int nY = nX - (isHist ? 1 : 0);
   if (nY <= 0)
@@ -223,6 +236,21 @@ void addNoise(Mantid::API::MatrixWorkspace_sptr ws, double noise,
  */
 Mantid::DataObjects::Workspace2D_sptr create2DWorkspaceWithFullInstrument(
     int nhist, int nbins, bool includeMonitors = false,
+    bool startYNegative = false, bool isHistogram = true,
+    const std::string &instrumentName = std::string("testInst"),
+    bool hasDx = false);
+
+/**
+ * Create a workspace as for create2DWorkspaceWithFullInstrument, but including
+ *time indexing, i.e. detector scans. Note that no positions or rotations are
+ *currently changed for the detector scan workspaces.
+ *
+ * Data filled with: Y: 2.0, E: sqrt(2.0), X: nbins of width 1 starting at 0
+ */
+Mantid::API::MatrixWorkspace_sptr
+create2DDetectorScanWorkspaceWithFullInstrument(
+    int nhist, int nbins, size_t nTimeIndexes, size_t startTime = 0,
+    size_t firstInterval = 1, bool includeMonitors = false,
     bool startYNegative = false, bool isHistogram = true,
     const std::string &instrumentName = std::string("testInst"));
 
@@ -288,8 +316,8 @@ createEventWorkspace(int numPixels, int numBins, int numEvents = 100,
 Mantid::DataObjects::EventWorkspace_sptr createEventWorkspaceWithStartTime(
     int numPixels, int numBins, int numEvents = 100, double x0 = 0.0,
     double binDelta = 1.0, int eventPattern = 1, int start_at_pixelID = 0,
-    Mantid::Kernel::DateAndTime run_start =
-        Mantid::Kernel::DateAndTime("2010-01-01T00:00:00"));
+    Mantid::Types::Core::DateAndTime run_start =
+        Mantid::Types::Core::DateAndTime("2010-01-01T00:00:00"));
 
 Mantid::DataObjects::EventWorkspace_sptr
 createGroupedEventWorkspace(std::vector<std::vector<int>> groups, int numBins,
@@ -307,16 +335,16 @@ Mantid::API::MatrixWorkspace_sptr createGroupedWorkspace2DWithRingsAndBoxes(
     size_t RootOfNumHist = 10, int numBins = 10, double binDelta = 1.0);
 // not strictly creating a workspace, but really helpful to see what one
 // contains
-void displayDataY(const Mantid::API::MatrixWorkspace_sptr ws);
+void displayDataY(Mantid::API::MatrixWorkspace_const_sptr ws);
 // not strictly creating a workspace, but really helpful to see what one
 // contains
-void displayData(const Mantid::API::MatrixWorkspace_sptr ws);
+void displayData(Mantid::API::MatrixWorkspace_const_sptr ws);
 // not strictly creating a workspace, but really helpful to see what one
 // contains
-void displayDataX(const Mantid::API::MatrixWorkspace_sptr ws);
+void displayDataX(Mantid::API::MatrixWorkspace_const_sptr ws);
 // not strictly creating a workspace, but really helpful to see what one
 // contains
-void displayDataE(const Mantid::API::MatrixWorkspace_sptr ws);
+void displayDataE(Mantid::API::MatrixWorkspace_const_sptr ws);
 
 void addTSPEntry(Mantid::API::Run &runInfo, std::string name, double val);
 void setOrientedLattice(Mantid::API::MatrixWorkspace_sptr ws, double a,
@@ -366,14 +394,24 @@ void create2DAngles(std::vector<double> &L2, std::vector<double> &polar,
 
 /// Create a 2D workspace with one detector and one monitor based around a
 /// virtual reflectometry instrument.
-Mantid::API::MatrixWorkspace_sptr
-create2DWorkspaceWithReflectometryInstrument(double startX = 0);
+Mantid::API::MatrixWorkspace_sptr create2DWorkspaceWithReflectometryInstrument(
+    double startX = 0.0,
+    Mantid::Kernel::V3D slit1Pos = Mantid::Kernel::V3D(0, 0, 0),
+    Mantid::Kernel::V3D slit2Pos = Mantid::Kernel::V3D(0, 0, 1),
+    double vg1 = 0.5, double vg2 = 1.0,
+    Mantid::Kernel::V3D sourcePos = Mantid::Kernel::V3D(0, 0, 0),
+    Mantid::Kernel::V3D monitorPos = Mantid::Kernel::V3D(14, 0, 0),
+    Mantid::Kernel::V3D samplePos = Mantid::Kernel::V3D(15, 0, 0),
+    Mantid::Kernel::V3D detectorPos = Mantid::Kernel::V3D(20, (20 - 15), 0),
+    const int nSpectra = 2, const int nBins = 100,
+    const double deltaX = 2000.0);
 
 /// Create a 2D workspace with one monitor and three detectors based around
 /// a virtual reflectometry instrument.
 Mantid::API::MatrixWorkspace_sptr
 create2DWorkspaceWithReflectometryInstrumentMultiDetector(
-    double startX = 0, const double detSize = 0.0);
+    const double startX = 0.0, const double detSize = 0.0,
+    const int nSpectra = 4, const int nBins = 20, const double deltaX = 5000.0);
 
 void createInstrumentForWorkspaceWithDistances(
     Mantid::API::MatrixWorkspace_sptr workspace,

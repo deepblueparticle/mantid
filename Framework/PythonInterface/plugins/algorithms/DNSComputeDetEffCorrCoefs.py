@@ -29,6 +29,9 @@ class DNSComputeDetEffCorrCoefs(PythonAlgorithm):
         """
         return 'Workflow\\MLZ\\DNS;CorrectionFunctions\\SpecialCorrections'
 
+    def seeAlso(self):
+        return [ "DNSFlippingRatioCorr" ]
+
     def name(self):
         """
         Returns name
@@ -241,6 +244,7 @@ class DNSComputeDetEffCorrCoefs(PythonAlgorithm):
         self.setProperty("OutputWorkspace", outws)
 
         return
+
 
 # Register algorithm with Mantid
 AlgorithmFactory.subscribe(DNSComputeDetEffCorrCoefs)

@@ -45,6 +45,9 @@ public:
   const std::string name() const override;
   /// Get the version of this algorithm
   int version() const override;
+  const std::vector<std::string> seeAlso() const override {
+    return {"IntegrateEllipsoids"};
+  }
   /// Get the category of this algorithm
   const std::string category() const override;
   /// Summary of algorithms purpose
@@ -66,7 +69,7 @@ private:
                         DataObjects::EventWorkspace_sptr &wksp,
                         const Kernel::DblMatrix &UBinv, bool hkl_integ);
   /// Calculate if this Q is on a detector
-  void calculateE1(const API::DetectorInfo &detectorInfo);
+  void calculateE1(const Geometry::DetectorInfo &detectorInfo);
   void runMaskDetectors(Mantid::DataObjects::PeaksWorkspace_sptr peakWS,
                         std::string property, std::string values);
 

@@ -13,6 +13,9 @@
 #include "MantidKernel/V3D.h"
 
 namespace Mantid {
+namespace Geometry {
+class InstrumentRayTracer;
+}
 namespace MDAlgorithms {
 
 /** FindPeaksMD : TODO: DESCRIPTION
@@ -33,10 +36,15 @@ public:
 
   /// Algorithm's version for identification
   int version() const override { return 1; };
+  const std::vector<std::string> seeAlso() const override {
+    return {"FindPeaks"};
+  }
   /// Algorithm's category for identification
   const std::string category() const override {
     return "Optimization\\PeakFinding;MDAlgorithms\\Peaks";
   }
+
+  std::map<std::string, std::string> validateInputs() override;
 
 private:
   /// Initialise the properties
@@ -49,11 +57,13 @@ private:
                           const Mantid::API::IMDWorkspace_sptr &ws);
 
   /// Adds a peak based on Q, bin count & a set of detector IDs
-  void addPeak(const Mantid::Kernel::V3D &Q, const double binCount);
+  void addPeak(const Mantid::Kernel::V3D &Q, const double binCount,
+               const Geometry::InstrumentRayTracer &tracer);
 
   /// Adds a peak based on Q, bin count
-  boost::shared_ptr<DataObjects::Peak> createPeak(const Mantid::Kernel::V3D &Q,
-                                                  const double binCount);
+  boost::shared_ptr<DataObjects::Peak>
+  createPeak(const Mantid::Kernel::V3D &Q, const double binCount,
+             const Geometry::InstrumentRayTracer &tracer);
 
   /// Run find peaks on an MDEventWorkspace
   template <typename MDE, size_t nd>
@@ -97,9 +107,18 @@ private:
   eDimensionType dimType;
   /// Goniometer matrix
   Mantid::Kernel::Matrix<double> m_goniometer;
+
+  /// Use number of events normalization for event workspaces.
+  bool m_useNumberOfEventsNormalization = false;
+  /// Signal density factor
+  double m_signalThresholdFactor = 1.5;
+  /// VolumeNormalization
+  static const std::string volumeNormalization;
+  /// NumberOfEventNormalization
+  static const std::string numberOfEventsNormalization;
 };
 
+} // namespace MDAlgorithms
 } // namespace Mantid
-} // namespace DataObjects
 
 #endif /* MANTID_MDALGORITHMS_FINDPEAKSMD_H_ */

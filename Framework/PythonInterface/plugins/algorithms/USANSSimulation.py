@@ -13,6 +13,9 @@ class USANSSimulation(PythonAlgorithm):
     def category(self):
         return "SANS"
 
+    def seeAlso(self):
+        return [ "USANSReduction" ]
+
     def name(self):
         return "USANSSimulation"
 
@@ -146,6 +149,7 @@ class USANSSimulation(PythonAlgorithm):
         vol = 4.0*math.pi/3.0*radius*radius*radius
         f2 = vol*bes*bes*1.0e-6
         return scale*f2+bck
+
 
 #############################################################################################
 AlgorithmFactory.subscribe(USANSSimulation())

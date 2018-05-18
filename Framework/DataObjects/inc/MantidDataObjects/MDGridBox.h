@@ -150,10 +150,11 @@ public:
       MDBin<MDE, nd> & /*bin*/,
       Mantid::Geometry::MDImplicitFunction & /*function*/) const override {}
 
-  void integrateSphere(Mantid::API::CoordTransform &radiusTransform,
-                       const coord_t radiusSquared, signal_t &signal,
-                       signal_t &errorSquared,
-                       const coord_t innerRadiusSquared = 0.0) const override;
+  void integrateSphere(
+      Mantid::API::CoordTransform &radiusTransform, const coord_t radiusSquared,
+      signal_t &signal, signal_t &errorSquared,
+      const coord_t innerRadiusSquared = 0.0,
+      const bool useOnePercentBackgroundCorrection = true) const override;
 
   void centroidSphere(Mantid::API::CoordTransform &radiusTransform,
                       const coord_t radiusSquared, coord_t *centroid,
@@ -204,10 +205,10 @@ public:
 
 public:
   /// Typedef for a shared pointer to a MDGridBox
-  typedef boost::shared_ptr<MDGridBox<MDE, nd>> sptr;
+  using sptr = boost::shared_ptr<MDGridBox<MDE, nd>>;
 
   /// Typedef for a vector of MDBoxBase pointers
-  typedef std::vector<MDBoxBase<MDE, nd> *> boxVector_t;
+  using boxVector_t = std::vector<MDBoxBase<MDE, nd> *>;
 
 private:
   /// Compute the index of the child box for the given event

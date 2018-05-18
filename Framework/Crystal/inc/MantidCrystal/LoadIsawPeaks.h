@@ -3,7 +3,7 @@
 
 #include "MantidKernel/System.h"
 #include "MantidAPI/IFileLoader.h"
-#include "MantidAPI/DetectorInfo.h"
+#include "MantidGeometry/Instrument/DetectorInfo.h"
 #include "MantidDataObjects/PeaksWorkspace.h"
 
 namespace Mantid {
@@ -29,6 +29,9 @@ public:
 
   /// Algorithm's version for identification
   int version() const override { return 1; }
+  const std::vector<std::string> seeAlso() const override {
+    return {"SaveIsawPeaks"};
+  }
 
   /// Algorithm's category for identification
   const std::string category() const override {

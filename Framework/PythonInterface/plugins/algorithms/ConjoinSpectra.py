@@ -17,6 +17,9 @@ class ConjoinSpectra(PythonAlgorithm):
     def category(self):
         return "Transforms\\Merging"
 
+    def seeAlso(self):
+        return [ "AppendSpectra","ConjoinWorkspaces" ]
+
     def name(self):
         return "ConjoinSpectra"
 
@@ -116,5 +119,6 @@ class ConjoinSpectra(PythonAlgorithm):
             #log and pass out an empty string
             logger.information("Could not find log " + labelUsing + " in workspace " + str(ws) + " using workspace label instead.")
         return labelString
+
 
 AlgorithmFactory.subscribe(ConjoinSpectra)

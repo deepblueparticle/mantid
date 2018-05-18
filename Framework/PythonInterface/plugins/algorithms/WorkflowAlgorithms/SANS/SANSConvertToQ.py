@@ -3,7 +3,7 @@
 """ Converts a workspace from wavelengths to momentum transfer."""
 from __future__ import (absolute_import, division, print_function)
 from mantid.kernel import (Direction, PropertyManagerProperty, CompositeValidator)
-from mantid.api import (DataProcessorAlgorithm, MatrixWorkspaceProperty, AlgorithmFactory, PropertyMode,
+from mantid.api import (DistributedDataProcessorAlgorithm, MatrixWorkspaceProperty, AlgorithmFactory, PropertyMode,
                         WorkspaceUnitValidator)
 
 from sans.common.constants import EMPTY_NAME
@@ -13,7 +13,7 @@ from sans.state.state_base import create_deserialized_sans_state_from_property_m
 from sans.algorithm_detail.q_resolution_calculator import QResolutionCalculatorFactory
 
 
-class SANSConvertToQ(DataProcessorAlgorithm):
+class SANSConvertToQ(DistributedDataProcessorAlgorithm):
     def category(self):
         return 'SANS\\ConvertToQ'
 
@@ -81,7 +81,8 @@ class SANSConvertToQ(DataProcessorAlgorithm):
         # Set the output
         append_to_sans_file_tag(output_workspace, "_convertq")
         self.setProperty("OutputWorkspace", output_workspace)
-        if sum_of_counts_workspace and sum_of_norms_workspace:
+        output_parts = self.getProperty("OutputParts").value
+        if output_parts:
             self._set_partial_workspaces(sum_of_counts_workspace, sum_of_norms_workspace)
 
     def _run_q_1d(self, state):
@@ -152,7 +153,7 @@ class SANSConvertToQ(DataProcessorAlgorithm):
         # Extract relevant settings
         convert_to_q = state.convert_to_q
         max_q_xy = convert_to_q.q_xy_max
-        delta_q_prefix = -1 if convert_to_q.q_xy_step_type is RangeStepType.Log else 1
+        delta_q_prefix = -1. if convert_to_q.q_xy_step_type is RangeStepType.Log else 1.
         delta_q = delta_q_prefix*convert_to_q.q_xy_step
         radius_cutoff = convert_to_q.radius_cutoff / 1000.  # Qxy expects the radius cutoff to be in mm
         wavelength_cutoff = convert_to_q.wavelength_cutoff

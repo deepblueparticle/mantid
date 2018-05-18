@@ -46,13 +46,13 @@
 #include <boost/regex.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <exception>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <utility>
-#include <ctype.h>
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -81,7 +81,7 @@ Logger g_log("ConfigService");
  * Split the supplied string on semicolons.
  *
  * @param path The path to split.
- * @returns vector containing the splitted path.
+ * @returns vector containing the split path.
  */
 std::vector<std::string> splitPath(const std::string &path) {
   std::vector<std::string> splitted;
@@ -110,19 +110,20 @@ std::vector<std::string> splitPath(const std::string &path) {
 template <typename T> class ConfigServiceImpl::WrappedObject : public T {
 public:
   /// The template type of class that is being wrapped
-  typedef T element_type;
+  using element_type = T;
   /// Simple constructor
   WrappedObject() : T() { m_pPtr = static_cast<T *>(this); }
 
   /** Constructor with a class to wrap
    *  @param F :: The object to wrap
+   *
+   * Note that this constructor can hide the copy constructor because it takes
+   * precedence over the copy constructor if supplied with a non-const
+   * WrappedObject argument. However, it just calls the base class copy
+   * constructor and sets m_pPtr, so the behaviour is the same as the copy
+   * constructor.
    */
   template <typename Field> explicit WrappedObject(Field &F) : T(F) {
-    m_pPtr = static_cast<T *>(this);
-  }
-
-  /// Copy constructor
-  WrappedObject(const WrappedObject<T> &A) : T(A) {
     m_pPtr = static_cast<T *>(this);
   }
 
@@ -179,9 +180,9 @@ ConfigServiceImpl::ConfigServiceImpl()
   // Fill the list of possible relative path keys that may require conversion to
   // absolute paths
   m_ConfigPaths.emplace("mantidqt.python_interfaces_directory", true);
-  m_ConfigPaths.emplace("plugins.directory", true);
-  m_ConfigPaths.emplace("pvplugins.directory", true);
-  m_ConfigPaths.emplace("mantidqt.plugins.directory", true);
+  m_ConfigPaths.emplace("framework.plugins.directory", true);
+  m_ConfigPaths.emplace("pvplugins.directory", false);
+  m_ConfigPaths.emplace("mantidqt.plugins.directory", false);
   m_ConfigPaths.emplace("instrumentDefinition.directory", true);
   m_ConfigPaths.emplace("instrumentDefinition.vtpDirectory", true);
   m_ConfigPaths.emplace("groupingFiles.directory", true);
@@ -221,16 +222,14 @@ ConfigServiceImpl::ConfigServiceImpl()
     propertiesFilesList += ", " + getUserFilename();
   }
 
-  updateFacilities();
-
   g_log.debug() << "ConfigService created.\n";
   g_log.debug() << "Configured Mantid.properties directory of application as "
                 << getPropertiesDir() << '\n';
   g_log.information() << "This is Mantid version " << MantidVersion::version()
                       << " revision " << MantidVersion::revision() << '\n';
   g_log.information() << "running on " << getComputerName() << " starting "
-                      << DateAndTime::getCurrentTime().toFormattedString(
-                             "%Y-%m-%dT%H:%MZ") << "\n";
+                      << Types::Core::DateAndTime::getCurrentTime()
+                             .toFormattedString("%Y-%m-%dT%H:%MZ") << "\n";
   g_log.information() << "Properties file(s) loaded: " << propertiesFilesList
                       << '\n';
 #ifndef MPI_BUILD // There is no logging to file by default in MPI build
@@ -265,6 +264,14 @@ ConfigServiceImpl::ConfigServiceImpl()
   }
   // must update the cache of instrument paths
   cacheInstrumentPaths();
+
+  // update the facilities AFTER we have ensured that all of the directories are
+  // created and the paths updated
+  // if we don't do that first the function below will silently fail without
+  // initialising the facilities vector
+  // and Mantid will crash when it tries to access them, for example when
+  // creating the first time startup screen
+  updateFacilities();
 }
 
 /** Private Destructor
@@ -351,7 +358,7 @@ void ConfigServiceImpl::loadConfig(const std::string &filename,
     bool good = readFile(filename, temp);
 
     // check if we have failed to open the file
-    if ((!good) || (temp == "")) {
+    if ((!good) || (temp.empty())) {
       if (filename == getUserPropertiesDir() + m_user_properties_file_name) {
         // write out a fresh file
         createUserPropertiesFile();
@@ -361,7 +368,7 @@ void ConfigServiceImpl::loadConfig(const std::string &filename,
     }
 
     // store the property string
-    if ((append) && (m_PropertyString != "")) {
+    if ((append) && (!m_PropertyString.empty())) {
       m_PropertyString = m_PropertyString + "\n" + temp;
     } else {
       m_PropertyString = temp;
@@ -1755,16 +1762,21 @@ std::string ConfigServiceImpl::getFacilityFilename(const std::string &fName) {
       this->getString("UpdateInstrumentDefinitions.OnStartup");
 
   auto instrDir = directoryNames.begin();
-  if (updateInstrStr == "1" || updateInstrStr == "on" ||
-      updateInstrStr == "On") {
-    // do nothing
-  } else {
-    instrDir++; // advance to after the first value
+
+  // If we are not updating the instrument definitions
+  // update the iterator, this means we will skip the folder in HOME and
+  // look in the instrument folder in mantid install directory or mantid source
+  // code directory
+  if (!(updateInstrStr == "1" || updateInstrStr == "on" ||
+        updateInstrStr == "On")) {
+    instrDir++;
   }
 
+  // look through all the possible files
   for (; instrDir != directoryNames.end(); ++instrDir) {
-    std::string filename = (*instrDir) + "Facilities.xml";
-
+    Poco::Path p(*instrDir);
+    p.append("Facilities.xml");
+    std::string filename = p.toString();
     Poco::File fileObj(filename);
     // stop when you find the first one
     if (fileObj.exists())
@@ -1779,50 +1791,51 @@ std::string ConfigServiceImpl::getFacilityFilename(const std::string &fName) {
 
 /**
  * Load facility information from instrumentDir/Facilities.xml file if fName
- * parameter
- * is not set
+ * parameter is not set.
+ *
+ * If any of the steps fail, we cannot sensibly recover, because the
+ * Facilities.xml file is missing or corrupted.
+ *
  * @param fName :: An alternative file name for loading facilities information.
+ * @throws std::runtime_error :: If the file is not found or fails to parse
  */
 void ConfigServiceImpl::updateFacilities(const std::string &fName) {
   clearFacilities();
 
+  // Try to find the file. If it does not exist we will crash, and cannot read
+  // the Facilities file
+  std::string fileName = getFacilityFilename(fName);
+
+  // Set up the DOM parser and parse xml file
+  Poco::AutoPtr<Poco::XML::Document> pDoc;
   try {
-    std::string fileName = getFacilityFilename(fName);
+    Poco::XML::DOMParser pParser;
+    pDoc = pParser.parse(fileName);
+  } catch (...) {
+    throw Kernel::Exception::FileError("Unable to parse file:", fileName);
+  }
 
-    // Set up the DOM parser and parse xml file
-    Poco::AutoPtr<Poco::XML::Document> pDoc;
-    try {
-      Poco::XML::DOMParser pParser;
-      pDoc = pParser.parse(fileName);
-    } catch (...) {
-      throw Kernel::Exception::FileError("Unable to parse file:", fileName);
+  // Get pointer to root element
+  Poco::XML::Element *pRootElem = pDoc->documentElement();
+  if (!pRootElem->hasChildNodes()) {
+    throw std::runtime_error("No root element in Facilities.xml file");
+  }
+
+  Poco::AutoPtr<Poco::XML::NodeList> pNL_facility =
+      pRootElem->getElementsByTagName("facility");
+  size_t n = pNL_facility->length();
+
+  for (unsigned long i = 0; i < n; ++i) {
+    Poco::XML::Element *elem =
+        dynamic_cast<Poco::XML::Element *>(pNL_facility->item(i));
+    if (elem) {
+      m_facilities.push_back(new FacilityInfo(elem));
     }
+  }
 
-    // Get pointer to root element
-    Poco::XML::Element *pRootElem = pDoc->documentElement();
-    if (!pRootElem->hasChildNodes()) {
-      throw std::runtime_error("No root element in Facilities.xml file");
-    }
-
-    Poco::AutoPtr<Poco::XML::NodeList> pNL_facility =
-        pRootElem->getElementsByTagName("facility");
-    unsigned long n = pNL_facility->length();
-
-    for (unsigned long i = 0; i < n; ++i) {
-      Poco::XML::Element *elem =
-          dynamic_cast<Poco::XML::Element *>(pNL_facility->item(i));
-      if (elem) {
-        m_facilities.push_back(new FacilityInfo(elem));
-      }
-    }
-
-    if (m_facilities.empty()) {
-      throw std::runtime_error("The facility definition file " + fileName +
-                               " defines no facilities");
-    }
-
-  } catch (std::exception &e) {
-    g_log.error(e.what());
+  if (m_facilities.empty()) {
+    throw std::runtime_error("The facility definition file " + fileName +
+                             " defines no facilities");
   }
 }
 
@@ -1969,25 +1982,6 @@ void ConfigServiceImpl::removeObserver(
 }
 
 /*
-Checks to see whether the pvplugins.directory variable is set. If it is set,
-assume
-we have built Mantid with ParaView
-@return True if paraview is available or not disabled.
-*/
-bool ConfigServiceImpl::pvPluginsAvailable() const {
-  std::string pvpluginsDir = getString("pvplugins.directory");
-  return !pvpluginsDir.empty();
-}
-
-/**
- * Gets the path to the ParaView plugins
- * @returns A string giving the directory of the ParaView plugins
- */
-const std::string ConfigServiceImpl::getPVPluginsPath() const {
-  return getString("pvplugins.directory");
-}
-
-/*
 Gets the system proxy information
 @url A url to match the proxy to
 @return the proxy information.
@@ -2029,11 +2023,12 @@ void ConfigServiceImpl::setConsoleLogLevel(int logLevel) {
 /** Sets the Log level for a filter channel
 * @param filterChannelName the channel name of the filter channel to change
 * @param logLevel the integer value of the log level to set, 1=Critical, 7=Debug
+* @param quiet If true then no message regarding the level change is emitted
 * @throws std::invalid_argument if the channel name is incorrect or it is not a
 * filterChannel
 */
 void ConfigServiceImpl::setFilterChannelLogLevel(
-    const std::string &filterChannelName, int logLevel) {
+    const std::string &filterChannelName, int logLevel, bool quiet) {
   Poco::Channel *channel = nullptr;
   try {
     channel = Poco::LoggingRegistry::defaultRegistry().channelForName(
@@ -2052,9 +2047,11 @@ void ConfigServiceImpl::setFilterChannelLogLevel(
     if (rootLevel != lowestLogLevel) {
       Mantid::Kernel::Logger::setLevelForAll(lowestLogLevel);
     }
-    g_log.log(filterChannelName + " log channel set to " +
-                  Logger::PriorityNames[logLevel] + " priority",
-              static_cast<Logger::Priority>(logLevel));
+    if (!quiet) {
+      g_log.log(filterChannelName + " log channel set to " +
+                    Logger::PriorityNames[logLevel] + " priority",
+                static_cast<Logger::Priority>(logLevel));
+    }
   } else {
     throw std::invalid_argument(filterChannelName +
                                 " was not a filter channel");

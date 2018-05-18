@@ -11,6 +11,7 @@
 
 #include "MantidAPI/Workspace.h"
 #include "MantidDataObjects/PeaksWorkspace.h"
+#include "MantidKernel/WarningSuppressions.h"
 #include "MantidPythonInterface/kernel/Policies/AsType.h"
 #include "MantidTestHelpers/MDEventsTestHelper.h" // These are still concerned with workspace creation so attach them here
 #include "MantidTestHelpers/WorkspaceCreationHelper.h"
@@ -26,6 +27,9 @@ using namespace WorkspaceCreationHelper;
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
 #endif
+// Ignore -Wconversion warnings coming from boost::python
+// Seen with GCC 7.1.1 and Boost 1.63.0
+GCC_DIAG_OFF(conversion)
 BOOST_PYTHON_FUNCTION_OVERLOADS(create2DWorkspaceWithFullInstrument_overloads,
                                 create2DWorkspaceWithFullInstrument, 2, 4)
 
@@ -35,7 +39,7 @@ BOOST_PYTHON_FUNCTION_OVERLOADS(makeFakeMDHistoWorkspace_overloads,
 BOOST_PYTHON_FUNCTION_OVERLOADS(
     create2DWorkspaceWithRectangularInstrument_overloads,
     create2DWorkspaceWithRectangularInstrument, 3, 3)
-
+GCC_DIAG_ON(conversion)
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
@@ -50,10 +54,8 @@ BOOST_PYTHON_MODULE(WorkspaceCreationHelper) {
   //===================================
 
   // Function pointers to disambiguate the calls
-  typedef Workspace2D_sptr (*Signature1_2D)(
-      int nHist, int nBins, bool includeMonitors, bool startYNegative);
-  typedef Workspace2D_sptr (*Signature2_2D)(int numBanks, int numPixels,
-                                            int numBins);
+  using Signature1_2D = Workspace2D_sptr (*)(int, int, bool, bool);
+  using Signature2_2D = Workspace2D_sptr (*)(int, int, int);
 
   def("create2DWorkspaceWithFullInstrument",
       reinterpret_cast<Signature1_2D>(&create2DWorkspaceWithFullInstrument),
@@ -86,9 +88,8 @@ BOOST_PYTHON_MODULE(WorkspaceCreationHelper) {
   //===================================
 
   // Typedef for function pointer to disabiguate references
-  typedef MDHistoWorkspace_sptr (*Signature1_MDHisto)(
-      double, size_t, size_t, Mantid::coord_t max, double, std::string name,
-      double);
+  using Signature1_MDHisto = MDHistoWorkspace_sptr (
+      *)(double, size_t, size_t, Mantid::coord_t, double, std::string, double);
 
   def("makeFakeMDHistoWorkspace", (Signature1_MDHisto)&makeFakeMDHistoWorkspace,
       makeFakeMDHistoWorkspace_overloads()

@@ -24,6 +24,10 @@ class MaskWorkspaceToCalFile(PythonAlgorithm):
     def category(self):
         return "DataHandling\\Text;Diffraction\\DataHandling;Diffraction\\Masking"
 
+    def seeAlso(self):
+        return [ "ReadGroupsFromFile","CreateDummyCalFile","CreateCalFileByNames",
+                 "AlignDetectors","DiffractionFocussing","LoadCalFile","SaveCalFile","MergeCalFiles" ]
+
     def name(self):
         return "MaskWorkspaceToCalFile"
 
@@ -91,5 +95,6 @@ class MaskWorkspaceToCalFile(PythonAlgorithm):
         return line
 
 #############################################################################################
+
 
 AlgorithmFactory.subscribe(MaskWorkspaceToCalFile())

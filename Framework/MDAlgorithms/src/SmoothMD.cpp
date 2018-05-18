@@ -30,35 +30,24 @@ using namespace Mantid::API;
 using namespace Mantid::DataObjects;
 
 // Typedef for width vector
-typedef std::vector<double> WidthVector;
+using WidthVector = std::vector<double>;
 
 // Typedef for kernel vector
-typedef std::vector<double> KernelVector;
+using KernelVector = std::vector<double>;
 
 // Typedef for an optional md histo workspace
-typedef boost::optional<IMDHistoWorkspace_const_sptr>
-    OptionalIMDHistoWorkspace_const_sptr;
+using OptionalIMDHistoWorkspace_const_sptr =
+    boost::optional<IMDHistoWorkspace_const_sptr>;
 
 // Typedef for a smoothing function
-typedef boost::function<IMDHistoWorkspace_sptr(
+using SmoothFunction = boost::function<IMDHistoWorkspace_sptr(
     IMDHistoWorkspace_const_sptr, const WidthVector &,
-    OptionalIMDHistoWorkspace_const_sptr)> SmoothFunction;
+    OptionalIMDHistoWorkspace_const_sptr)>;
 
 // Typedef for a smoothing function map keyed by name.
-typedef std::map<std::string, SmoothFunction> SmoothFunctionMap;
+using SmoothFunctionMap = std::map<std::string, SmoothFunction>;
 
 namespace {
-
-/**
- * @brief functions
- * @return Allowed smoothing functions
- */
-std::vector<std::string> functions() {
-  std::vector<std::string> propOptions;
-  propOptions.push_back("Hat");
-  propOptions.push_back("Gaussian");
-  return propOptions;
-}
 
 /**
  * Maps a function name to a smoothing function
@@ -203,8 +192,8 @@ SmoothMD::hatSmooth(IMDHistoWorkspace_const_sptr toSmooth,
   for (int it = 0; it < int(iterators.size()); ++it) { // NOLINT
 
     PARALLEL_START_INTERUPT_REGION
-    boost::scoped_ptr<MDHistoWorkspaceIterator> iterator(
-        dynamic_cast<MDHistoWorkspaceIterator *>(iterators[it]));
+    auto iterator =
+        dynamic_cast<MDHistoWorkspaceIterator *>(iterators[it].get());
 
     if (!iterator) {
       throw std::logic_error(
@@ -329,9 +318,8 @@ SmoothMD::gaussianSmooth(IMDHistoWorkspace_const_sptr toSmooth,
     for (int it = 0; it < int(iterators.size()); ++it) { // NOLINT
 
       PARALLEL_START_INTERUPT_REGION
-      boost::scoped_ptr<MDHistoWorkspaceIterator> iterator(
-          dynamic_cast<MDHistoWorkspaceIterator *>(iterators[it]));
-
+      auto iterator =
+          dynamic_cast<MDHistoWorkspaceIterator *>(iterators[it].get());
       if (!iterator) {
         throw std::logic_error(
             "Failed to cast IMDIterator to MDHistoWorkspaceIterator");
@@ -414,7 +402,7 @@ void SmoothMD::init() {
       "dimension, or provide a single entry (n-pixels) for all "
       "dimensions. Must be odd integers if Hat function is chosen.");
 
-  const auto allFunctionTypes = functions();
+  const std::array<std::string, 2> allFunctionTypes = {{"Hat", "Gaussian"}};
   const std::string first = allFunctionTypes.front();
 
   std::stringstream docBuffer;
@@ -426,7 +414,7 @@ void SmoothMD::init() {
           Direction::Input),
       docBuffer.str());
 
-  std::vector<std::string> unitOptions = {"pixels"};
+  std::array<std::string, 1> unitOptions = {{"pixels"}};
 
   std::stringstream docUnits;
   docUnits << "The units that WidthVector has been specified in. Allowed "

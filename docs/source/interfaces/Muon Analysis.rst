@@ -14,7 +14,10 @@ Interface Overview
 
 This interface is used to analyse the data collected on Muon instruments. The interface can be
 accessed from the main menu of MantidPlot, in *Interfaces → Muon → Muon Analysis*. For sample
-datasets, please visit `Muon - Downloads <http://www.isis.stfc.ac.uk/groups/muons/downloads/downloads4612.html>`_.
+datasets, please visit `Muon - Downloads <http://www.isis.stfc.ac.uk/groups/muons/downloads/downloads4612.html>`_.#
+
+If the :ref:`Frequency_Domain_Analysis-ref` interfaces is opened it will import all of the data available for the current run in Muon Analysis.
+This will include any custom groupings/pairs. 
 
 Home
 ----
@@ -265,7 +268,8 @@ Data Analysis
 
 This tab is designed for the user to make a fit against the data just plotted.
 Since Mantid 3.8 (upgraded in 3.10), this tab has been enhanced to include fits of multiple datasets at once.
-Since Mantid 3.10 a Transverse field (TF) Asymmetry mode has been added. 
+Since Mantid 3.10 a Transverse field (TF) Asymmetry mode has been added and from Mantid 3.11 it is also available in 
+multiple fitting mode. 
 
 Default: multiple fitting disabled
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -286,13 +290,11 @@ The intention is that this mode could be useful for users who are accustomed to 
 TF asymmetry enabled
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-The TF asymmetry mode can be enabled by checking the "TF Asymmetry" checkbox on the Settings_ tab.
-At present it is not possible to use multiple fitting and TF asymmetry, therefore it is not possible 
-to select both checkboxes. Loading transverse field asymmetry data into muon analysis will automatically
+The TF asymmetry mode can be enabled by checking the "TF Asymmetry" checkbox in the Settings table of the data analysis tab. Loading transverse field asymmetry data into muon analysis will automatically
 enable TF asymmetry mode. 
 When this is activated, the data analysis tab has two main differences to the pre 3.8 version. Firstly there 
 is an additional row in the Data table (normalization). The second difference is the addition of the "TF
-Asymmetry Fit" button in the fitting tab. Selecting this fitting option will call the :ref:`Calculate Muon Asymmetry <algm-CalculateMuonAsymmetry>` algorithm. The user defined function will be the composite function from the interface.
+Asymmetry Fit" button in the fitting tab. Selecting this fitting option will recalculate the normalization based on the user fitting function. 
 
 .. image::  ../images/MuonAnalysisTFAsymm.png
    :align: right
@@ -652,6 +654,20 @@ General
 |       |                             | Enabling the option will change the UI of the DataAnalysis_ tab to  |
 |       |                             | the new one described above, enabling fits of multiple datasets to  |
 |       |                             | be made.                                                            |
++-------+-----------------------------+---------------------------------------------------------------------+
+| **5** | **Load all groups**         | By default, this option is disabled and the workspaces are generated|
+|       |                             | when they are plotted.                                              |
+|       |                             |                                                                     |
+|       |                             | Enabling the option will automatically add workspaces for each group|
+|       |                             | to the grouped workspace. If a new group is created it will be added|
+|       |                             | to the grouped workspace.                                           |
++-------+-----------------------------+---------------------------------------------------------------------+
+| **5** | **Load all pairs**          | By default, this option is disabled and the workspaces are generated|
+|       |                             | when they are plotted.                                              |
+|       |                             |                                                                     |
+|       |                             | Enabling the option will automatically add workspaces for each pair |
+|       |                             | to the grouped workspace. If a new pair  is created it will be added|
+|       |                             | to the grouped workspace.                                           |
 +-------+-----------------------------+---------------------------------------------------------------------+
 
 Feedback & Comments

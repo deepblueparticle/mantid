@@ -31,6 +31,9 @@ class ConvertSnsRoiFileToMask(api.PythonAlgorithm):
         """
         return "Inelastic\\Utility"
 
+    def seeAlso(self):
+        return [ "MaskDetectors" ]
+
     def name(self):
         """
         Name of the algorithm.
@@ -126,6 +129,7 @@ class ConvertSnsRoiFileToMask(api.PythonAlgorithm):
         parts = idx.split('_')
         bankid = int(parts[0].split('bank')[-1])
         return int(parts[2]) + det_size[1] * (int(parts[1]) + det_size[0] * (bankid-1))
+
 
 # Register algorithm with Mantid.
 api.AlgorithmFactory.subscribe(ConvertSnsRoiFileToMask)

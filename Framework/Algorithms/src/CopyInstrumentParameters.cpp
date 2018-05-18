@@ -1,5 +1,5 @@
 #include "MantidAlgorithms/CopyInstrumentParameters.h"
-#include "MantidAPI/DetectorInfo.h"
+#include "MantidGeometry/Instrument/DetectorInfo.h"
 #include "MantidAPI/MatrixWorkspace.h"
 #include "MantidGeometry/Instrument/ParameterMap.h"
 
@@ -133,6 +133,17 @@ void CopyInstrumentParameters::checkProperties() {
     g_log.warning() << "The base instrument in the output workspace is not the "
                        "same as the base instrument in the input workspace.\n";
   }
+}
+
+Parallel::ExecutionMode CopyInstrumentParameters::getParallelExecutionMode(
+    const std::map<std::string, Parallel::StorageMode> &storageModes) const {
+  const auto in = storageModes.at("InputWorkspace");
+  const auto out = storageModes.at("InputWorkspace");
+  // Source instrument avaible only on master rank, so copying not possible if
+  // target requires it on non-master ranks.
+  if (in == Parallel::StorageMode::MasterOnly && in != out)
+    return Parallel::ExecutionMode::Invalid;
+  return Parallel::getCorrespondingExecutionMode(out);
 }
 
 } // namespace Algorithms

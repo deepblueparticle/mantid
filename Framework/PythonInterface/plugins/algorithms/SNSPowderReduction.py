@@ -4,14 +4,13 @@ from __future__ import (absolute_import, division, print_function)
 import os
 
 import mantid.simpleapi as api
-from mantid.api import mtd, AlgorithmFactory, AnalysisDataService, DataProcessorAlgorithm, \
+from mantid.api import mtd, AlgorithmFactory, AnalysisDataService, DistributedDataProcessorAlgorithm, \
     FileAction, FileProperty, ITableWorkspaceProperty, MultipleFileProperty, PropertyMode, WorkspaceProperty, \
     ITableWorkspace, MatrixWorkspace
 from mantid.kernel import ConfigService, Direction, FloatArrayProperty, \
     FloatBoundedValidator, IntArrayBoundedValidator, IntArrayProperty, \
     PropertyManagerDataService, StringListValidator
 from mantid.dataobjects import SplittersWorkspace  # SplittersWorkspace
-# Use xrange in Python 2
 from six.moves import range #pylint: disable=redefined-builtin
 
 if AlgorithmFactory.exists('GatherWorkspaces'):
@@ -107,7 +106,7 @@ def getBasename(filename):
 #pylint: disable=too-many-instance-attributes
 
 
-class SNSPowderReduction(DataProcessorAlgorithm):
+class SNSPowderReduction(DistributedDataProcessorAlgorithm):
     COMPRESS_TOL_TOF = .01
     _resampleX = None
     _binning = None
@@ -138,6 +137,9 @@ class SNSPowderReduction(DataProcessorAlgorithm):
 
     def category(self):
         return "Diffraction\\Reduction"
+
+    def seeAlso(self):
+        return [ "DiffractionFocussing","AlignAndFocusPowder" ]
 
     def name(self):
         return "SNSPowderReduction"
@@ -175,7 +177,7 @@ class SNSPowderReduction(DataProcessorAlgorithm):
         self.declareProperty(IntArrayProperty("VanadiumBackgroundNumber", values=[0], validator=arrvalidatorVanBack),
                              doc="If specified overrides value in CharacterizationRunsFile. If -1 turns off correction."
                                  "")
-        self.declareProperty(FileProperty(name="CalibrationFile",defaultValue="",action=FileAction.Load,
+        self.declareProperty(FileProperty(name="CalibrationFile",defaultValue="",action=FileAction.OptionalLoad,
                                           extensions=[".h5", ".hd5", ".hdf", ".cal"]))  # CalFileName
         self.declareProperty(FileProperty(name="GroupingFile",defaultValue="",action=FileAction.OptionalLoad,
                                           extensions=[".xml"]), "Overrides grouping from CalibrationFile")
@@ -202,7 +204,7 @@ class SNSPowderReduction(DataProcessorAlgorithm):
                              "How far from the ideal position a vanadium peak can be during StripVanadiumPeaks. "
                              "Default=0.05, negative turns off")
         self.declareProperty("VanadiumSmoothParams", "20,2", "Default=20,2")
-        self.declareProperty("VanadiumRadius", .3175, "Radius for MultipleScatteringCylinderAbsorption")
+        self.declareProperty("VanadiumRadius", .3175, "Radius for CarpenterSampleCorrection")
         self.declareProperty("BackgroundSmoothParams", "", "Default=off, suggested 20,2")
 
         # filtering
@@ -337,7 +339,8 @@ class SNSPowderReduction(DataProcessorAlgorithm):
         # get the user-option whether an existing event workspace will be reloaded or not
         reload_event_file = self.getProperty('ReloadIfWorkspaceExists').value
 
-        if self.getProperty("Sum").value:
+        if self.getProperty("Sum").value and len(samRuns) > 1:
+            self.log().information('Ignoring value of "Sum" property')
             # Sum input sample runs and then do reduction
             if self._splittersWS is not None:
                 raise NotImplementedError("Summing spectra and filtering events are not supported simultaneously.")
@@ -675,7 +678,6 @@ class SNSPowderReduction(DataProcessorAlgorithm):
 
         :param filename_list: list of filenames
         :param outName:
-        :param filterWall:
         :return:
         """
         # Check requirements
@@ -723,7 +725,7 @@ class SNSPowderReduction(DataProcessorAlgorithm):
 
         # Normalize by current with new name
         if self._normalisebycurrent is True:
-            self.log().warning('[SPECIAL DB] Normalize current to workspace %s' % sample_ws_name)
+            self.log().information('Normalize current to workspace %s' % sample_ws_name)
             # temp_ws = self.get_workspace(sample_ws_name)
             if not (is_event_workspace(sample_ws_name) and get_workspace(sample_ws_name).getNumberEvents() == 0):
                 api.NormaliseByCurrent(InputWorkspace=sample_ws_name,
@@ -799,7 +801,6 @@ class SNSPowderReduction(DataProcessorAlgorithm):
         Load, (optional) split and focus data in chunks
         @param filename: integer for run number
         @param filter_wall:  Enabled if splitwksp is defined
-        @param normalisebycurrent: Set to False if summing runs for correct math
         @param splitwksp: SplittersWorkspace (if None then no split)
         @param preserveEvents:
         @return: a string as the returned workspace's name or a list of strings as the returned workspaces' names
@@ -891,9 +892,6 @@ class SNSPowderReduction(DataProcessorAlgorithm):
                                         ReductionProperties="__snspowderreduction",
                                         **self._focusPos)
                 # logging (ignorable)
-                #for iws in range(out_ws_c_s.getNumberHistograms()):
-                #    spec = out_ws_c_s.getSpectrum(iws)
-                #    self.log().debug("[DBx131] ws %d: spectrum No = %d. " % (iws, spec.getSpectrumNo()))
                 if is_event_workspace(out_ws_name_chunk_split):
                     self.log().information('After being aligned and focused, workspace %s: Number of events = %d '
                                            'of chunk %d ' % (out_ws_name_chunk_split,
@@ -1364,9 +1362,9 @@ class SNSPowderReduction(DataProcessorAlgorithm):
             api.SetSampleMaterial(InputWorkspace=van_run_ws_name,
                                   ChemicalFormula="V",
                                   SampleNumberDensity=0.0721)
-            api.MultipleScatteringCylinderAbsorption(InputWorkspace=van_run_ws_name,
-                                                     OutputWorkspace=van_run_ws_name,
-                                                     CylinderSampleRadius=self._vanRadius)
+            api.CarpenterSampleCorrection(InputWorkspace=van_run_ws_name,
+                                          OutputWorkspace=van_run_ws_name,
+                                          CylinderSampleRadius=self._vanRadius)
 
             # convert unit to T.O.F.
             api.ConvertUnits(InputWorkspace=van_run_ws_name,
@@ -1447,7 +1445,7 @@ class SNSPowderReduction(DataProcessorAlgorithm):
         self.log().information("SplitterWorkspace = %s, Information Workspace = %s. " % (
             split_ws_name, str(self._splitinfotablews)))
 
-        base_name = raw_ws_name
+        base_name = raw_ws_name + '_split'
 
         # find out whether the splitters are relative time or epoch time
         split_ws = AnalysisDataService.retrieve(split_ws_name)
@@ -1503,6 +1501,7 @@ class SNSPowderReduction(DataProcessorAlgorithm):
         # END-FOR
 
         return out_ws_name_list
+
 
 # Register algorithm with Mantid.
 AlgorithmFactory.subscribe(SNSPowderReduction)

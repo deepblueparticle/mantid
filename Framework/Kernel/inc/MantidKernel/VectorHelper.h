@@ -40,11 +40,10 @@ namespace Kernel {
     Code Documentation is available at: <http://doxygen.mantidproject.org>
  */
 namespace VectorHelper {
-int MANTID_KERNEL_DLL
-createAxisFromRebinParams(const std::vector<double> &params,
-                          std::vector<double> &xnew,
-                          const bool resize_xnew = true,
-                          const bool full_bins_only = false);
+int MANTID_KERNEL_DLL createAxisFromRebinParams(
+    const std::vector<double> &params, std::vector<double> &xnew,
+    const bool resize_xnew = true, const bool full_bins_only = false,
+    const double xMinHint = std::nan(""), const double xMaxHint = std::nan(""));
 
 void MANTID_KERNEL_DLL
 rebin(const std::vector<double> &xold, const std::vector<double> &yold,
@@ -67,6 +66,15 @@ void MANTID_KERNEL_DLL convertToBinCentre(const std::vector<double> &bin_edges,
 void MANTID_KERNEL_DLL
 convertToBinBoundary(const std::vector<double> &bin_centers,
                      std::vector<double> &bin_edges);
+
+/// Gets the bin of a value from a vector of bin centers
+size_t MANTID_KERNEL_DLL
+indexOfValueFromCenters(const std::vector<double> &bin_centers,
+                        const double value);
+
+/// Gets the bin of a value from a vector of bin edges
+size_t MANTID_KERNEL_DLL
+indexOfValueFromEdges(const std::vector<double> &bin_edges, const double value);
 
 bool MANTID_KERNEL_DLL isConstantValue(const std::vector<double> &arra);
 

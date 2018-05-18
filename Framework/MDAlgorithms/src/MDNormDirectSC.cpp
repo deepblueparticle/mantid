@@ -405,21 +405,21 @@ void MDNormDirectSC::cacheDimensionXValues() {
                                (PhysicalConstants::h * PhysicalConstants::h);
   if (!m_hIntegrated) {
     auto &hDim = *m_normWS->getDimension(m_hIdx);
-    m_hX.resize(hDim.getNBins());
+    m_hX.resize(hDim.getNBoundaries());
     for (size_t i = 0; i < m_hX.size(); ++i) {
       m_hX[i] = hDim.getX(i);
     }
   }
   if (!m_kIntegrated) {
     auto &kDim = *m_normWS->getDimension(m_kIdx);
-    m_kX.resize(kDim.getNBins());
+    m_kX.resize(kDim.getNBoundaries());
     for (size_t i = 0; i < m_kX.size(); ++i) {
       m_kX[i] = kDim.getX(i);
     }
   }
   if (!m_lIntegrated) {
     auto &lDim = *m_normWS->getDimension(m_lIdx);
-    m_lX.resize(lDim.getNBins());
+    m_lX.resize(lDim.getNBoundaries());
     for (size_t i = 0; i < m_lX.size(); ++i) {
       m_lX[i] = lDim.getX(i);
     }
@@ -427,7 +427,7 @@ void MDNormDirectSC::cacheDimensionXValues() {
   if (!m_dEIntegrated) {
     // NOTE: store k final instead
     auto &eDim = *m_normWS->getDimension(m_eIdx);
-    m_eX.resize(eDim.getNBins());
+    m_eX.resize(eDim.getNBoundaries());
     for (size_t i = 0; i < m_eX.size(); ++i) {
       double temp = m_Ei - eDim.getX(i);
       temp = std::max(temp, 0.);
@@ -450,7 +450,7 @@ void MDNormDirectSC::calculateNormalization(
                                PhysicalConstants::meV * 1e-20 /
                                (PhysicalConstants::h * PhysicalConstants::h);
   const auto &exptInfoZero = *(m_inputWS->getExperimentInfo(0));
-  typedef Kernel::PropertyWithValue<std::vector<double>> VectorDoubleProperty;
+  using VectorDoubleProperty = Kernel::PropertyWithValue<std::vector<double>>;
   auto *rubwLog =
       dynamic_cast<VectorDoubleProperty *>(exptInfoZero.getLog("RUBW_MATRIX"));
   if (!rubwLog) {
@@ -483,6 +483,7 @@ void MDNormDirectSC::calculateNormalization(
   std::vector<std::array<double, 4>> intersections;
   std::vector<coord_t> pos, posNew;
   auto prog = make_unique<API::Progress>(this, 0.3, 1.0, ndets);
+  // cppcheck-suppress syntaxError
 PRAGMA_OMP(parallel for private(intersections, pos, posNew))
 for (int64_t i = 0; i < ndets; i++) {
   PARALLEL_START_INTERUPT_REGION

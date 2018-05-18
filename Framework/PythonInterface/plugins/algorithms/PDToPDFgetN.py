@@ -19,6 +19,9 @@ class PDToPDFgetN(DataProcessorAlgorithm):
     def category(self):
         return "Workflow\\Diffraction"
 
+    def seeAlso(self):
+        return [ "PDToGUDRUN" ]
+
     def name(self):
         return "PDToPDFgetN"
 
@@ -176,6 +179,7 @@ class PDToPDFgetN(DataProcessorAlgorithm):
                 Format="SLOG", ExtendedHeader=True)
 
         self.setProperty("OutputWorkspace", wksp)
+
 
 # Register algorithm with Mantid.
 AlgorithmFactory.subscribe(PDToPDFgetN)

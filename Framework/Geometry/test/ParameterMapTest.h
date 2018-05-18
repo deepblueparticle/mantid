@@ -5,6 +5,8 @@
 #include "MantidGeometry/Instrument/ParameterFactory.h"
 #include "MantidGeometry/Instrument/ParameterMap.h"
 #include "MantidGeometry/Instrument/Detector.h"
+#include "MantidBeamline/ComponentInfo.h"
+#include "MantidBeamline/DetectorInfo.h"
 #include "MantidTestHelpers/ComponentCreationHelper.h"
 #include "MantidKernel/V3D.h"
 #include <cxxtest/TestSuite.h>
@@ -302,9 +304,9 @@ public:
   test_Replacing_Existing_Parameter_On_A_Copy_Does_Not_Update_Original_Value_Using_AddHelpers_As_Strings() {
     // -- Specialized Helper Functions --
 
-    typedef boost::function<void(ParameterMap *, const IComponent *,
-                                 const std::string &, const std::string &,
-                                 const std::string *const)> AddFuncHelper;
+    using AddFuncHelper = boost::function<void(
+        ParameterMap *, const IComponent *, const std::string &,
+        const std::string &, const std::string *const)>;
 
     // double
     AddFuncHelper faddDouble;
@@ -511,7 +513,7 @@ public:
     Parameter_sptr fetchedValue =
         pmap.getByType(comp.get(), ParameterMap::pDouble());
     TSM_ASSERT("Should not be able to find a double type parameter",
-               fetchedValue == NULL);
+               fetchedValue == nullptr);
   }
 
   void test_lookup_via_type() {
@@ -549,7 +551,7 @@ public:
     // Find it via the component
     Parameter_sptr fetchedValue =
         pmap.getRecursiveByType(component.get(), ParameterMap::pBool());
-    TS_ASSERT(fetchedValue != NULL);
+    TS_ASSERT(fetchedValue != nullptr);
     TS_ASSERT_EQUALS("A", fetchedValue->name());
     TS_ASSERT_EQUALS(ParameterMap::pBool(), fetchedValue->type());
     TS_ASSERT_EQUALS(true, fetchedValue->value<bool>());
@@ -566,7 +568,7 @@ public:
     // Find it via the child
     Parameter_sptr fetchedValue =
         pmap.getRecursiveByType(childComponent.get(), ParameterMap::pBool());
-    TS_ASSERT(fetchedValue != NULL);
+    TS_ASSERT(fetchedValue != nullptr);
     TS_ASSERT_EQUALS("A", fetchedValue->name());
     TS_ASSERT_EQUALS(ParameterMap::pBool(), fetchedValue->type());
     TS_ASSERT_EQUALS(true, fetchedValue->value<bool>());
@@ -587,7 +589,7 @@ public:
     // Find it via the child
     Parameter_sptr fetchedValue =
         pmap.getRecursiveByType(childComponent.get(), ParameterMap::pBool());
-    TS_ASSERT(fetchedValue != NULL);
+    TS_ASSERT(fetchedValue != nullptr);
     TSM_ASSERT_EQUALS(
         "Has not searched through parameters with the correct priority", "A",
         fetchedValue->name());
@@ -637,7 +639,7 @@ private:
                                           const ValueType &newValue) {
     ParameterMap pmap;
     const std::string name = "Parameter";
-    pmap.add<ValueType>(type, m_testInstrument.get(), name, origValue, NULL);
+    pmap.add<ValueType>(type, m_testInstrument.get(), name, origValue, nullptr);
 
     ParameterMap copy(pmap); // invoke copy constructor
 
@@ -698,7 +700,6 @@ private:
     auto origParameter = pmap.get(m_testInstrument.get(), name);
     TS_ASSERT_EQUALS(origTypedValue, origParameter->value<ValueType>());
   }
-
   // private instrument
   Instrument_sptr m_testInstrument;
 };
@@ -720,7 +721,7 @@ public:
 
     // One object
     const double cylRadius(0.004), cylHeight(0.0002);
-    Object_sptr pixelShape = ComponentCreationHelper::createCappedCylinder(
+    IObject_sptr pixelShape = ComponentCreationHelper::createCappedCylinder(
         cylRadius, cylHeight, V3D(0.0, -cylHeight / 2.0, 0.0), V3D(0., 1.0, 0.),
         "pixel-shape");
 

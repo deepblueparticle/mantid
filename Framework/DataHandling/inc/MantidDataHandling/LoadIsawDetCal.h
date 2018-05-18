@@ -1,15 +1,18 @@
 #ifndef MANTID_DATAHANDLING_LOADISAWDETCAL_H_
 #define MANTID_DATAHANDLING_LOADISAWDETCAL_H_
 
-//----------------------------------------------------------------------
-// Includes
-//----------------------------------------------------------------------
 #include "MantidAPI/Algorithm.h"
-#include "MantidAPI/DetectorInfo.h"
 #include "MantidAPI/ExperimentInfo.h"
+#include "MantidGeometry/IComponent.h"
 #include "MantidGeometry/Instrument_fwd.h"
 
 namespace Mantid {
+namespace Geometry {
+class ComponentInfo;
+}
+namespace API {
+class DetectorInfo;
+}
 namespace DataHandling {
 /**
  Find the offsets for each detector
@@ -53,6 +56,9 @@ public:
 
   /// Algorithm's version for identification overriding a virtual method
   int version() const override { return 1; }
+  const std::vector<std::string> seeAlso() const override {
+    return {"SaveIsawDetCal"};
+  }
   /// Algorithm's category for identification overriding a virtual method
   const std::string category() const override {
     return "Diffraction\\DataHandling;DataHandling\\Isaw";
@@ -77,13 +83,13 @@ private:
   /// Set the center of the supplied detector name
   void center(const double x, const double y, const double z,
               const std::string &detname, API::Workspace_sptr ws,
-              API::DetectorInfo &detectorInfo);
+              Geometry::ComponentInfo &componentInfo);
 
   Geometry::Instrument_sptr getCheckInst(API::Workspace_sptr ws);
   std::vector<std::string> getFilenames();
 
   void doRotation(Kernel::V3D rX, Kernel::V3D rY,
-                  API::DetectorInfo &detectorInfo,
+                  Geometry::ComponentInfo &componentInfo,
                   boost::shared_ptr<const Geometry::IComponent> comp,
                   bool doWishCorrection = false);
   void applyScalings(

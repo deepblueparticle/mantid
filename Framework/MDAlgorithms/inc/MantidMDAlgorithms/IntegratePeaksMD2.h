@@ -10,7 +10,7 @@
 #include "MantidKernel/System.h"
 
 namespace Mantid {
-namespace API {
+namespace Geometry {
 class DetectorInfo;
 }
 namespace MDAlgorithms {
@@ -32,6 +32,10 @@ public:
 
   /// Algorithm's version for identification
   int version() const override { return 2; };
+  const std::vector<std::string> seeAlso() const override {
+    return {"CentroidPeaksMD", "IntegratePeaksHybrid", "IntegratePeaksMDHKL",
+            "IntegratePeaksUsingClusters", "IntegratePeaksCWSD"};
+  }
   /// Algorithm's category for identification
   const std::string category() const override { return "MDAlgorithms\\Peaks"; }
 
@@ -48,7 +52,7 @@ private:
   Mantid::API::IMDEventWorkspace_sptr inWS;
 
   /// Calculate if this Q is on a detector
-  void calculateE1(const API::DetectorInfo &detectorInfo);
+  void calculateE1(const Geometry::DetectorInfo &detectorInfo);
   double detectorQ(Mantid::Kernel::V3D QLabFrame, double r);
   void runMaskDetectors(Mantid::DataObjects::PeaksWorkspace_sptr peakWS,
                         std::string property, std::string values);

@@ -35,6 +35,8 @@ using namespace HistogramData;
 using namespace Indexing;
 using Mantid::MantidVec;
 using Mantid::MantidVecPtr;
+using Types::Core::DateAndTime;
+using Types::Event::TofEvent;
 
 // Register the algorithm into the AlgorithmFactory
 DECLARE_ALGORITHM(CreateSampleWorkspace)
@@ -309,6 +311,8 @@ MatrixWorkspace_sptr CreateSampleWorkspace::createHistogramWorkspace(
     bool isRandom) {
   BinEdges x(numBins + 1, LinearGenerator(x0, binDelta));
 
+  // there is a oddity here that y is evaluated from x=0, and x is from XMin
+  // changing it requires changing unit tests that use this algorithm
   std::vector<double> xValues(cbegin(x), cend(x) - 1);
   Counts y(evalFunction(functionString, xValues, isRandom ? 1 : 0));
 
@@ -335,7 +339,7 @@ MatrixWorkspace_sptr CreateSampleWorkspace::createScanningWorkspace(
     timeRanges.push_back(double(i + 1));
   }
 
-  builder.setTimeRanges(Kernel::DateAndTime(0), timeRanges);
+  builder.setTimeRanges(Types::Core::DateAndTime(0), timeRanges);
   builder.setRelativeRotationsForScans(angles, inst->getSample()->getPos(),
                                        V3D(0, 1, 0));
 
@@ -432,6 +436,7 @@ CreateSampleWorkspace::evalFunction(const std::string &functionString,
     std::string replaceStr = boost::lexical_cast<std::string>(replace_val);
     replaceAll(parsedFuncString, token, replaceStr);
   }
+  g_log.information(parsedFuncString);
 
   IFunction_sptr func_sptr =
       FunctionFactory::Instance().createInitialized(parsedFuncString);
@@ -499,9 +504,9 @@ Instrument_sptr CreateSampleWorkspace::createTestInstrumentRectangular(
   const double cylRadius(pixelSpacing / 2);
   const double cylHeight(0.0002);
   // One object
-  Object_sptr pixelShape = createCappedCylinder(
-      cylRadius, cylHeight, V3D(0.0, -cylHeight / 2.0, 0.0), V3D(0., 1.0, 0.),
-      "pixel-shape");
+  auto pixelShape = createCappedCylinder(cylRadius, cylHeight,
+                                         V3D(0.0, -cylHeight / 2.0, 0.0),
+                                         V3D(0., 1.0, 0.), "pixel-shape");
 
   for (int banknum = 1; banknum <= numBanks; banknum++) {
     // Make a new bank
@@ -532,7 +537,7 @@ Instrument_sptr CreateSampleWorkspace::createTestInstrumentRectangular(
 
   int monitorsStart = (numBanks + 1) * pixels * pixels;
 
-  Object_sptr monitorShape =
+  auto monitorShape =
       createCappedCylinder(0.1, 0.1, V3D(0.0, -cylHeight / 2.0, 0.0),
                            V3D(0., 1.0, 0.), "monitor-shape");
 
@@ -559,21 +564,20 @@ Instrument_sptr CreateSampleWorkspace::createTestInstrumentRectangular(
   }
 
   // Define a source component
-  ObjComponent *source =
-      new ObjComponent("moderator", Object_sptr(new Object), testInst.get());
+  ObjComponent *source = new ObjComponent(
+      "moderator", IObject_sptr(new CSGObject), testInst.get());
   source->setPos(V3D(0.0, 0.0, -sourceSampleDistance));
   testInst->add(source);
   testInst->markAsSource(source);
 
   // Add chopper
   ObjComponent *chopper = new ObjComponent(
-      "chopper-position", Object_sptr(new Object), testInst.get());
+      "chopper-position", IObject_sptr(new CSGObject), testInst.get());
   chopper->setPos(V3D(0.0, 0.0, -0.25 * sourceSampleDistance));
   testInst->add(chopper);
 
   // Define a sample as a simple sphere
-  Object_sptr sampleSphere =
-      createSphere(0.001, V3D(0.0, 0.0, 0.0), "sample-shape");
+  auto sampleSphere = createSphere(0.001, V3D(0.0, 0.0, 0.0), "sample-shape");
   ObjComponent *sample =
       new ObjComponent("sample", sampleSphere, testInst.get());
   testInst->setPos(0.0, 0.0, 0.0);
@@ -587,11 +591,9 @@ Instrument_sptr CreateSampleWorkspace::createTestInstrumentRectangular(
 /**
  * Create a capped cylinder object
  */
-Object_sptr CreateSampleWorkspace::createCappedCylinder(double radius,
-                                                        double height,
-                                                        const V3D &baseCentre,
-                                                        const V3D &axis,
-                                                        const std::string &id) {
+IObject_sptr CreateSampleWorkspace::createCappedCylinder(
+    double radius, double height, const V3D &baseCentre, const V3D &axis,
+    const std::string &id) {
   std::ostringstream xml;
   xml << "<cylinder id=\"" << id << "\">"
       << "<centre-of-bottom-base x=\"" << baseCentre.X() << "\" y=\""
@@ -611,9 +613,9 @@ Object_sptr CreateSampleWorkspace::createCappedCylinder(double radius,
 /**
  * Create a sphere object
  */
-Object_sptr CreateSampleWorkspace::createSphere(double radius,
-                                                const V3D &centre,
-                                                const std::string &id) {
+IObject_sptr CreateSampleWorkspace::createSphere(double radius,
+                                                 const V3D &centre,
+                                                 const std::string &id) {
   ShapeFactory shapeMaker;
   std::ostringstream xml;
   xml << "<sphere id=\"" << id << "\">"

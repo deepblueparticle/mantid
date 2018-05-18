@@ -40,6 +40,9 @@ class ExportExperimentLog(PythonAlgorithm):
         """
         return 'DataHandling\\Logs'
 
+    def seeAlso(self):
+        return [ "ExportSampleLogsToCSVFile" ]
+
     def PyInit(self):
         """ Declaration of properties
         """
@@ -556,6 +559,7 @@ class ExportExperimentLog(PythonAlgorithm):
             localtimestr = "%s-%s" % (localtimestr, tzn)
 
         return localtimestr
+
 
 # Register algorithm with Mantid
 AlgorithmFactory.subscribe(ExportExperimentLog)

@@ -29,6 +29,10 @@ class LoadEmptyVesuvio(PythonAlgorithm):
         return 'DataHandling\\Raw'
 #----------------------------------------------------------------------------------------
 
+    def seeAlso(self):
+        return [ "LoadVesuvio" ]
+
+#----------------------------------------------------------------------------------------
     def PyInit(self):
         self.declareProperty(FileProperty(INST_PAR_PROP, "", action=FileAction.OptionalLoad,
                                           extensions=["dat"]),
@@ -113,5 +117,6 @@ class LoadEmptyVesuvio(PythonAlgorithm):
                              "variants. ncols=%d" % (len(columns)))
 
 #----------------------------------------------------------------------------------------
+
 
 AlgorithmFactory.subscribe(LoadEmptyVesuvio)

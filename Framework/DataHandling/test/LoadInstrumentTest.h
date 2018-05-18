@@ -3,7 +3,7 @@
 
 #include "MantidAPI/AnalysisDataService.h"
 #include "MantidAPI/Axis.h"
-#include "MantidAPI/DetectorInfo.h"
+#include "MantidGeometry/Instrument/DetectorInfo.h"
 #include "MantidAPI/ExperimentInfo.h"
 #include "MantidAPI/InstrumentDataService.h"
 #include "MantidAPI/SpectrumInfo.h"
@@ -110,8 +110,8 @@ public:
     const auto &detectorInfo = output->detectorInfo();
     const auto &ptrDet103 = detectorInfo.detector(detectorInfo.indexOf(103));
     TS_ASSERT_EQUALS(ptrDet103.getID(), 103);
-    TS_ASSERT_EQUALS(ptrDet103.getName(), "pixel");
-    TS_ASSERT_DELTA(ptrDet103.getPos().X(), 0.4013, 0.01);
+    TS_ASSERT_EQUALS(ptrDet103.getName(), "HET_non_PSDtube");
+    TS_ASSERT_DELTA(ptrDet103.getPos().X(), 0.3826351418, 0.01);
     TS_ASSERT_DELTA(ptrDet103.getPos().Z(), 2.4470, 0.01);
     double d = ptrDet103.getPos().distance(samplepos->getPos());
     TS_ASSERT_DELTA(d, 2.512, 0.0001);
@@ -162,9 +162,9 @@ public:
     TS_ASSERT_THROWS_NOTHING(loadAgain.execute());
     TS_ASSERT_EQUALS(output->getInstrument()->baseInstrument(), i);
 
-    // Valid-from/to
-    Kernel::DateAndTime validFrom("1900-01-31T23:59:59");
-    Kernel::DateAndTime validTo("2100-01-31 23:59:59");
+    // Valid-from/to1951-01-01 00:00:01
+    Types::Core::DateAndTime validFrom("1951-01-01T00:00:01");
+    Types::Core::DateAndTime validTo("2100-01-31 23:59:59");
     TS_ASSERT_EQUALS(i->getValidFromDate(), validFrom);
     TS_ASSERT_EQUALS(i->getValidToDate(), validTo);
 
@@ -636,7 +636,7 @@ private:
     // IDFs_for_UNIT_TESTING/HRPD_Parameters_Test4.xml
     Parameter_sptr param = paramMap.getRecursive(&(*comp), par, "fitting");
     TS_ASSERT(param);
-    if (param != 0) {
+    if (param != nullptr) {
       const FitParameter &fitParam4 = param->value<FitParameter>();
       TS_ASSERT(fitParam4.getTie().compare("") == 0);
       TS_ASSERT(fitParam4.getFunction().compare("BackToBackExponential") == 0);

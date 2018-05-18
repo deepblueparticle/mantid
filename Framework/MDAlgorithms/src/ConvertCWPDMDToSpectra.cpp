@@ -50,8 +50,8 @@ void ConvertCWPDMDToSpectra::init() {
                       "OutputWorkspace", "", Direction::Output),
                   "Name of the output workspace for reduced data.");
 
-  std::vector<std::string> vecunits{"2theta", "dSpacing",
-                                    "Momentum Transfer (Q)"};
+  std::array<std::string, 3> vecunits = {
+      {"2theta", "dSpacing", "Momentum Transfer (Q)"}};
   auto unitval = boost::make_shared<ListValidator<std::string>>(vecunits);
   declareProperty("UnitOutput", "2theta", unitval,
                   "Unit of the output workspace.");
@@ -107,7 +107,7 @@ void ConvertCWPDMDToSpectra::exec() {
 
   // output unit: make a map for wavelength
   std::map<int, double> map_runWavelength;
-  if (outputunit.compare("2theta")) {
+  if (outputunit != "2theta") {
     // set up runid and wavelength  map
     std::string wavelengthpropertyname =
         getProperty("NeutornWaveLengthPropertyName");
@@ -449,7 +449,7 @@ void ConvertCWPDMDToSpectra::binMD(API::IMDEventWorkspace_const_sptr mdws,
                 << sourcepos.Y() << ", " << sourcepos.Z() << "\n";
 
   // Go through all events to find out their positions
-  IMDIterator *mditer = mdws->createIterator();
+  auto mditer = mdws->createIterator();
   bool scancell = true;
   size_t nextindex = 1;
   int currRunIndex = -1;

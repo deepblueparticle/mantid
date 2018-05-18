@@ -1,4 +1,5 @@
 #include "MantidKernel/Statistics.h"
+#include "MantidKernel/WarningSuppressions.h"
 #include "MantidPythonInterface/kernel/NdArray.h"
 #include "MantidPythonInterface/kernel/Converters/NDArrayToVector.h"
 #include "MantidPythonInterface/kernel/Policies/VectorToNumpy.h"
@@ -101,9 +102,13 @@ Statistics getStatisticsNumpy(const NumPy::NdArray &data,
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
 #endif
+// Ignore -Wconversion warnings coming from boost::python
+// Seen with GCC 7.1.1 and Boost 1.63.0
+GCC_DIAG_OFF(conversion)
 // Define an overload to handle the default argument
 BOOST_PYTHON_FUNCTION_OVERLOADS(getStatisticsOverloads, getStatisticsNumpy, 1,
                                 2)
+GCC_DIAG_ON(conversion)
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
@@ -160,9 +165,13 @@ std::vector<double> getModifiedZscoreNumpy(const NumPy::NdArray &data,
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
 #endif
+// Ignore -Wconversion warnings coming from boost::python
+// Seen with GCC 7.1.1 and Boost 1.63.0
+GCC_DIAG_OFF(conversion)
 // Define an overload to handle the default argument
 BOOST_PYTHON_FUNCTION_OVERLOADS(getModifiedZscoreOverloads,
                                 getModifiedZscoreNumpy, 1, 2)
+GCC_DIAG_ON(conversion)
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
@@ -171,9 +180,9 @@ BOOST_PYTHON_FUNCTION_OVERLOADS(getModifiedZscoreOverloads,
 //============================================
 
 // Function pointer to real implementation of getMoments
-typedef std::vector<double>(*MomentsFunction)(const std::vector<double> &indep,
-                                              const std::vector<double> &depend,
-                                              const int);
+using MomentsFunction = std::vector<double>(*)(const std::vector<double> &,
+                                               const std::vector<double> &,
+                                               const int);
 
 /**
  * The implementation for getMomentsAboutOrigin & getMomentsAboutOriginMean for
@@ -221,9 +230,13 @@ std::vector<double> getMomentsAboutOriginNumpy(const NumPy::NdArray &indep,
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
 #endif
+// Ignore -Wconversion warnings coming from boost::python
+// Seen with GCC 7.1.1 and Boost 1.63.0
+GCC_DIAG_OFF(conversion)
 // Define an overload to handle the default argument
 BOOST_PYTHON_FUNCTION_OVERLOADS(getMomentsAboutOriginOverloads,
                                 getMomentsAboutOriginNumpy, 2, 3)
+GCC_DIAG_ON(conversion)
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
@@ -243,9 +256,13 @@ std::vector<double> getMomentsAboutMeanNumpy(const NumPy::NdArray &indep,
 #pragma clang diagnostic ignored "-Wunknown-pragmas"
 #pragma clang diagnostic ignored "-Wunused-local-typedef"
 #endif
+// Ignore -Wconversion warnings coming from boost::python
+// Seen with GCC 7.1.1 and Boost 1.63.0
+GCC_DIAG_OFF(conversion)
 // Define an overload to handle the default argument
 BOOST_PYTHON_FUNCTION_OVERLOADS(getMomentsAboutMeanOverloads,
                                 getMomentsAboutMeanNumpy, 2, 3)
+GCC_DIAG_ON(conversion)
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
@@ -258,7 +275,7 @@ BOOST_PYTHON_FUNCTION_OVERLOADS(getMomentsAboutMeanOverloads,
 
 void export_Statistics() {
   // typedef std::vector --> numpy array result converter
-  typedef return_value_policy<Policies::VectorToNumpy> ReturnNumpyArray;
+  using ReturnNumpyArray = return_value_policy<Policies::VectorToNumpy>;
 
   // define a new "Statistics" scope so that everything is called as
   // Statistics.getXXX

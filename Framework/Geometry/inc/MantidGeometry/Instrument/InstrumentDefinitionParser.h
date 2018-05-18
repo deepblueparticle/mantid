@@ -26,7 +26,8 @@ class ICompAssembly;
 class IComponent;
 class Instrument;
 class ObjComponent;
-class Object;
+class IObject;
+class ShapeFactory;
 
 /** Creates an instrument data from a XML instrument description file
 
@@ -77,7 +78,8 @@ public:
   };
 
   /// Parse XML contents
-  boost::shared_ptr<Instrument> parseXML(Kernel::ProgressBase *prog);
+  boost::shared_ptr<Instrument>
+  parseXML(Kernel::ProgressBase *progressReporter);
 
   /// Add/overwrite any parameters specified in instrument with param values
   /// specified in <component-link> XML elements
@@ -242,6 +244,53 @@ private:
   /// behavior of atof which always returns 0 if there is a problem.
   double attrToDouble(const Poco::XML::Element *pElem, const std::string &name);
 
+  /// Populate vectors of pointers to type and component xml elements
+  void getTypeAndComponentPointers(
+      const Poco::XML::Element *pRootElem,
+      std::vector<Poco::XML::Element *> &typeElems,
+      std::vector<Poco::XML::Element *> &compElems) const;
+
+  /// Throw exception if type name is not unique in the IDF
+  void throwIfTypeNameNotUnique(const std::string &filename,
+                                const std::string &typeName) const;
+
+  /// Record type as an assembly if it contains a component, otherwise create a
+  /// shape for it
+  void
+  createShapeIfTypeIsNotAnAssembly(Mantid::Geometry::ShapeFactory &shapeCreator,
+                                   size_t iType, Poco::XML::Element *pTypeElem,
+                                   const std::string &typeName);
+
+  /// Adjust each type which contains a \<combine-components-into-one-shape\>
+  /// element
+  void adjustTypesContainingCombineComponentsElement(
+      ShapeFactory &shapeCreator, const std::string &filename,
+      const std::vector<Poco::XML::Element *> &typeElems, size_t numberOfTypes);
+
+  /// Create a vector of elements which contain a \<parameter\>
+  void createVectorOfElementsContainingAParameterElement(
+      Poco::XML::Element *pRootElem);
+
+  /// Check IdList
+  void checkIdListExistsAndDefinesEnoughIDs(IdList idList,
+                                            Poco::XML::Element *pElem,
+                                            const std::string &filename) const;
+
+  /// Check component has a \<location\> or \<locations\> element
+  void checkComponentContainsLocationElement(Poco::XML::Element *pElem,
+                                             const std::string &filename) const;
+
+  /// Aggregate locations and IDs for components
+  void parseLocationsForEachTopLevelComponent(
+      Kernel::ProgressBase *progressReporter, const std::string &filename,
+      const std::vector<Poco::XML::Element *> &compElems);
+
+  /// Collect some information about types for later use
+  void
+  collateTypeInformation(const std::string &filename,
+                         const std::vector<Poco::XML::Element *> &typeElems,
+                         ShapeFactory &shapeCreator);
+
 public: // for testing
   /// return absolute position of point which is set relative to the
   /// coordinate system of the input component
@@ -310,7 +359,8 @@ private:
    */
   std::map<std::string, bool> isTypeAssembly;
   /// map which maps the type name to a shared pointer to a geometric shape
-  std::map<std::string, boost::shared_ptr<Geometry::Object>> mapTypeNameToShape;
+  std::map<std::string, boost::shared_ptr<Geometry::IObject>>
+      mapTypeNameToShape;
   /// Container to hold all detectors and monitors added to the instrument. Used
   /// for 'facing' these to component specified under \<defaults\>. NOTE: Seems
   /// unused, ever.

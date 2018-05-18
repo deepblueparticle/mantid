@@ -1,18 +1,21 @@
 #ifndef WORKSPACETEST_H_
 #define WORKSPACETEST_H_
 
-#include "MantidAPI/DetectorInfo.h"
+#include "MantidAPI/AnalysisDataService.h"
 #include "MantidAPI/ISpectrum.h"
 #include "MantidAPI/MatrixWorkspace.h"
 #include "MantidAPI/NumericAxis.h"
 #include "MantidAPI/Run.h"
+#include "MantidAPI/Sample.h"
 #include "MantidAPI/SpectraAxis.h"
 #include "MantidAPI/SpectrumDetectorMapping.h"
 #include "MantidAPI/SpectrumInfo.h"
 #include "MantidAPI/WorkspaceFactory.h"
-#include "MantidGeometry/Instrument/ComponentHelper.h"
-#include "MantidGeometry/Instrument.h"
+#include "MantidGeometry/Crystal/OrientedLattice.h"
+#include "MantidGeometry/Instrument/ComponentInfo.h"
 #include "MantidGeometry/Instrument/Detector.h"
+#include "MantidGeometry/Instrument/DetectorInfo.h"
+#include "MantidGeometry/Instrument.h"
 #include "MantidKernel/make_cow.h"
 #include "MantidKernel/TimeSeriesProperty.h"
 #include "MantidKernel/VMD.h"
@@ -41,6 +44,7 @@ using namespace Mantid::Kernel;
 using namespace Mantid::API;
 using namespace Mantid::Geometry;
 using Mantid::Indexing::IndexInfo;
+using Mantid::Types::Core::DateAndTime;
 
 // Declare into the factory.
 DECLARE_WORKSPACE(WorkspaceTester)
@@ -401,6 +405,17 @@ public:
     TS_ASSERT_EQUALS(ws.getSpectrum(0).getDetectorIDs().size(), 0);
   }
 
+  void testCloneClearsWorkspaceName() {
+    auto ws = boost::make_shared<WorkspaceTester>();
+    ws->initialize(1, 1, 1);
+    const std::string name{"MatrixWorkspace_testCloneClearsWorkspaceName"};
+    AnalysisDataService::Instance().add(name, ws);
+    TS_ASSERT_EQUALS(ws->getName(), name)
+    auto cloned = ws->clone();
+    TS_ASSERT(cloned->getName().empty())
+    AnalysisDataService::Instance().clear();
+  }
+
   void testGetSetTitle() {
     TS_ASSERT_EQUALS(ws->getTitle(), "");
     ws->setTitle("something");
@@ -440,6 +455,13 @@ public:
       TS_ASSERT_EQUALS(testWS.getSpectrum(i).getSpectrumNo(), specnum_t(i + 1));
       TS_ASSERT(testWS.getSpectrum(i).hasDetectorID(detid_t(i)));
     }
+  }
+
+  void testEmptyWorkspace() {
+    WorkspaceTester ws;
+    TS_ASSERT(ws.isCommonBins());
+    TS_ASSERT_EQUALS(ws.blocksize(), 0);
+    TS_ASSERT_EQUALS(ws.size(), 0);
   }
 
   void test_updateSpectraUsing() {
@@ -722,6 +744,16 @@ public:
     }
   }
 
+  void testSetMaskedBins() {
+    auto ws = makeWorkspaceWithDetectors(2, 2);
+    ws->flagMasked(0, 1);
+    ws->flagMasked(1, 0);
+    ws->setMaskedBins(1, ws->maskedBins(0));
+    TS_ASSERT(ws->hasMaskedBins(1));
+    TS_ASSERT_EQUALS(ws->maskedBins(1).size(), 1);
+    TS_ASSERT_EQUALS(ws->maskedBins(0).begin()->first, 1);
+  }
+
   void testSize() {
     WorkspaceTester wkspace;
     wkspace.initialize(1, 4, 3);
@@ -918,16 +950,26 @@ public:
   void test_getSignalAtCoord_pointData() {
     // Create a test workspace
     const auto ws = createTestWorkspace(4, 5, 5);
+    auto normType = Mantid::API::NoNormalization;
 
     // Get signal at coordinates
-    std::vector<coord_t> coords = {0.0, 1.0};
-    TS_ASSERT_DELTA(
-        ws.getSignalAtCoord(coords.data(), Mantid::API::NoNormalization), 0.0,
-        1e-5);
+    std::vector<coord_t> coords = {-1.0, 1.0};
+    coords[0] = -0.75;
+    TS_ASSERT(std::isnan(ws.getSignalAtCoord(coords.data(), normType)));
+    coords[0] = -0.25;
+    TS_ASSERT_DELTA(ws.getSignalAtCoord(coords.data(), normType), 0.0, 1e-5);
+    coords[0] = 0.0;
+    TS_ASSERT_DELTA(ws.getSignalAtCoord(coords.data(), normType), 0.0, 1e-5);
+    coords[0] = 0.25;
+    TS_ASSERT_DELTA(ws.getSignalAtCoord(coords.data(), normType), 0.0, 1e-5);
+    coords[0] = 0.75;
+    TS_ASSERT_DELTA(ws.getSignalAtCoord(coords.data(), normType), 1.0, 1e-5);
     coords[0] = 1.0;
-    TS_ASSERT_DELTA(
-        ws.getSignalAtCoord(coords.data(), Mantid::API::NoNormalization), 1.0,
-        1e-5);
+    TS_ASSERT_DELTA(ws.getSignalAtCoord(coords.data(), normType), 1.0, 1e-5);
+    coords[0] = 4.25;
+    TS_ASSERT_DELTA(ws.getSignalAtCoord(coords.data(), normType), 4.0, 1e-5);
+    coords[0] = 4.75;
+    TS_ASSERT(std::isnan(ws.getSignalAtCoord(coords.data(), normType)));
   }
 
   void test_getCoordAtSignal_regression() {
@@ -976,7 +1018,7 @@ public:
   void test_setMDMasking() {
     WorkspaceTester ws;
     TSM_ASSERT_THROWS("Characterisation test. This is not implemented.",
-                      ws.setMDMasking(NULL), std::runtime_error);
+                      ws.setMDMasking(nullptr), std::runtime_error);
   }
 
   void test_clearMDMasking() {
@@ -1527,10 +1569,10 @@ public:
     MatrixWorkspace_sptr wsNonConst;
     TS_ASSERT_THROWS_NOTHING(
         wsConst = manager.getValue<MatrixWorkspace_const_sptr>(wsName));
-    TS_ASSERT(wsConst != NULL);
+    TS_ASSERT(wsConst != nullptr);
     TS_ASSERT_THROWS_NOTHING(
         wsNonConst = manager.getValue<MatrixWorkspace_sptr>(wsName));
-    TS_ASSERT(wsNonConst != NULL);
+    TS_ASSERT(wsNonConst != nullptr);
     TS_ASSERT_EQUALS(wsConst, wsNonConst);
 
     // Check TypedValue can be cast to const_sptr or to sptr
@@ -1538,9 +1580,9 @@ public:
     MatrixWorkspace_const_sptr wsCastConst;
     MatrixWorkspace_sptr wsCastNonConst;
     TS_ASSERT_THROWS_NOTHING(wsCastConst = (MatrixWorkspace_const_sptr)val);
-    TS_ASSERT(wsCastConst != NULL);
+    TS_ASSERT(wsCastConst != nullptr);
     TS_ASSERT_THROWS_NOTHING(wsCastNonConst = (MatrixWorkspace_sptr)val);
-    TS_ASSERT(wsCastNonConst != NULL);
+    TS_ASSERT(wsCastNonConst != nullptr);
     TS_ASSERT_EQUALS(wsCastConst, wsCastNonConst);
   }
 
@@ -1641,9 +1683,18 @@ public:
     // Moving parent not possible since non-detector components do not have time
     // indices and thus DetectorInfo cannot tell which set of detector positions
     // to adjust.
-    TS_ASSERT_THROWS(detInfo.setPosition(*det.getParent(), V3D(1, 2, 3)),
+
+    auto &compInfo = merged->mutableComponentInfo();
+
+    // Try to move the parent
+    TS_ASSERT_THROWS(compInfo.setPosition(compInfo.parent(compInfo.indexOf(
+                                              det.getComponentID())),
+                                          V3D(1, 2, 3)),
                      std::runtime_error);
-    TS_ASSERT_THROWS(detInfo.setRotation(*det.getParent(), Quat(1, 2, 3, 4)),
+    // Try to rotate the parent
+    TS_ASSERT_THROWS(compInfo.setRotation(compInfo.parent(compInfo.indexOf(
+                                              det.getComponentID())),
+                                          Quat(1, 2, 3, 4)),
                      std::runtime_error);
   }
 
@@ -1833,9 +1884,9 @@ public:
     // future updates
     while (count < 10) {
       // Rotate the bank
-      ComponentHelper::rotateComponent(
-          *m_sansBank, *m_paramMap, m_zRotation,
-          Mantid::Geometry::ComponentHelper::Relative);
+      auto &compInfo = m_workspaceSans.mutableComponentInfo();
+      compInfo.setRotation(compInfo.indexOf(m_sansBank->getComponentID()),
+                           m_zRotation);
 
       V3D pos;
       for (size_t i = 1; i < m_workspaceSans.getNumberHistograms(); ++i) {
@@ -1859,9 +1910,9 @@ public:
     // future updates
     while (count < 10) {
       // move the bank
-      ComponentHelper::moveComponent(
-          *m_sansBank, *m_paramMap, m_pos,
-          Mantid::Geometry::ComponentHelper::Relative);
+      auto &compInfo = m_workspaceSans.mutableComponentInfo();
+      compInfo.setPosition(compInfo.indexOf(m_sansBank->getComponentID()),
+                           m_pos);
 
       V3D pos;
       for (size_t i = 1; i < m_workspaceSans.getNumberHistograms(); ++i) {
@@ -1876,9 +1927,9 @@ public:
     int count = 0;
     while (count < 10) {
       // Rotate the bank
-      ComponentHelper::rotateComponent(
-          *m_sansBank, *m_paramMap, m_zRotation,
-          Mantid::Geometry::ComponentHelper::Relative);
+      auto &compInfo = m_workspaceSans.mutableComponentInfo();
+      compInfo.setRotation(compInfo.indexOf(m_sansBank->getComponentID()),
+                           m_zRotation);
 
       V3D pos;
       const auto &spectrumInfo = m_workspaceSans.spectrumInfo();
@@ -1894,9 +1945,9 @@ public:
     int count = 0;
     while (count < 10) {
       // move the bank
-      ComponentHelper::moveComponent(
-          *m_sansBank, *m_paramMap, m_pos,
-          Mantid::Geometry::ComponentHelper::Relative);
+      auto &compInfo = m_workspaceSans.mutableComponentInfo();
+      compInfo.setPosition(compInfo.indexOf(m_sansBank->getComponentID()),
+                           m_pos);
 
       V3D pos;
       const auto &spectrumInfo = m_workspaceSans.spectrumInfo();
@@ -1905,6 +1956,27 @@ public:
       }
       ++count;
     }
+  }
+
+  void test_hasOrientedLattice() {
+    // create a workspace without an oriented lattice (or sample)
+    boost::shared_ptr<MatrixWorkspace> ws(makeWorkspaceWithDetectors(3, 1));
+    TSM_ASSERT_EQUALS(
+        "A newly created workspace should not have an oriented lattice",
+        ws->hasOrientedLattice(), false);
+
+    // add an oriented lattice
+    OrientedLattice *latt = new OrientedLattice(1.0, 2.0, 3.0, 90, 90, 90);
+    ws->mutableSample().setOrientedLattice(latt);
+    delete latt;
+    TSM_ASSERT_EQUALS("A workspace with an oriented lattice should report true",
+                      ws->hasOrientedLattice(), true);
+
+    // remove it again
+    ws->mutableSample().clearOrientedLattice();
+    TSM_ASSERT_EQUALS(
+        "workspace with it's oriented lattice cleared should report false",
+        ws->hasOrientedLattice(), false);
   }
 
 private:

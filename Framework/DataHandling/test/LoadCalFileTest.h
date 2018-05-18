@@ -5,7 +5,7 @@
 #include "MantidKernel/Timer.h"
 #include "MantidKernel/System.h"
 #include "MantidAPI/AnalysisDataService.h"
-#include "MantidAPI/DetectorInfo.h"
+#include "MantidGeometry/Instrument/DetectorInfo.h"
 #include "MantidAPI/Run.h"
 
 #include "MantidDataHandling/LoadCalFile.h"
@@ -125,8 +125,8 @@ public:
   }
 
   void tearDown() override {
-    for (size_t i = 0; i < loadAlgPtrArray.size(); i++) {
-      delete loadAlgPtrArray[i];
+    for (auto &i : loadAlgPtrArray) {
+      delete i;
     }
     loadAlgPtrArray.clear();
 

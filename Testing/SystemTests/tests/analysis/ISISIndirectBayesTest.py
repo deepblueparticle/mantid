@@ -1,9 +1,11 @@
 #pylint: disable=no-init,attribute-defined-outside-init, too-few-public-methods
+from __future__ import (absolute_import, division, print_function)
 import stresstesting
 import os
 from abc import ABCMeta, abstractmethod
 from mantid.simpleapi import *
 import platform
+from six import with_metaclass
 
 #==============================================================================
 
@@ -316,9 +318,7 @@ class QLWidthTest(stresstesting.MantidStressTest):
 #==============================================================================
 
 
-class JumpFitFunctionTestBase(stresstesting.MantidStressTest):
-
-    __metaclass__ = ABCMeta
+class JumpFitFunctionTestBase(with_metaclass(ABCMeta, stresstesting.MantidStressTest)):
 
     def __init__(self):
         stresstesting.MantidStressTest.__init__(self)
@@ -411,7 +411,7 @@ class JumpTeixeiraTest(JumpFitFunctionTestBase):
     def __init__(self):
         JumpFitFunctionTestBase.__init__(self)
 
-        self._function = 'name=TeixeiraWater,Tau=1.6,L=0.4'
+        self._function = 'name=TeixeiraWater,Tau=1.6,L=0.9'
         self.tolerance = 1e-3
 
     def get_reference_files(self):

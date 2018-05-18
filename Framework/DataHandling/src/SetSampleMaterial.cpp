@@ -44,15 +44,15 @@ void SetSampleMaterial::init() {
                       "InputWorkspace", "", Direction::InOut),
                   "The workspace with which to associate the sample ");
   declareProperty("ChemicalFormula", "",
-                  "ChemicalFormula or AtomicNumber must be given.");
-  declareProperty("AtomicNumber", 0,
-                  "ChemicalFormula or AtomicNumber must be given");
-  declareProperty("MassNumber", 0, "Mass number if ion (default is 0)");
+                  "The chemical formula, see examples in documentation");
+  declareProperty("AtomicNumber", 0, "The atomic number");
+  declareProperty("MassNumber", 0,
+                  "Mass number if ion (use 0 for default mass sensity)");
   auto mustBePositive = boost::make_shared<BoundedValidator<double>>();
   mustBePositive->setLower(0.0);
   declareProperty("SampleNumberDensity", EMPTY_DBL(), mustBePositive,
-                  "Optional:  This number density of the sample in number of "
-                  "formulas per cubic angstrom will be used instead of "
+                  "This number density of the sample in number of "
+                  "atoms per cubic angstrom will be used instead of "
                   "calculated");
   declareProperty("ZParameter", EMPTY_DBL(), mustBePositive,
                   "Number of formula units in unit cell");
@@ -73,7 +73,7 @@ void SetSampleMaterial::init() {
                   "incoherent) for the sample material in barns will be used "
                   "instead of tabulated");
   declareProperty("SampleMassDensity", EMPTY_DBL(), mustBePositive,
-                  "Optional: Measured mass density in g/cubic cm of the sample "
+                  "Measured mass density in g/cubic cm of the sample "
                   "to be used to calculate the number density.");
 
   // Perform Group Associations.
@@ -95,21 +95,14 @@ void SetSampleMaterial::init() {
   setPropertyGroup("ScatteringXSection", specificValuesGrp);
 
   // Extra property settings
+  setPropertySettings("ChemicalFormula",
+                      make_unique<Kernel::EnabledWhenProperty>(
+                          "AtomicNumber", Kernel::IS_DEFAULT));
   setPropertySettings("AtomicNumber",
                       make_unique<Kernel::EnabledWhenProperty>(
                           "ChemicalFormula", Kernel::IS_DEFAULT));
   setPropertySettings("MassNumber", make_unique<Kernel::EnabledWhenProperty>(
                                         "ChemicalFormula", Kernel::IS_DEFAULT));
-
-  setPropertySettings("UnitCellVolume",
-                      make_unique<Kernel::EnabledWhenProperty>(
-                          "SampleNumberDensity", Kernel::IS_DEFAULT));
-  setPropertySettings("ZParameter",
-                      make_unique<Kernel::EnabledWhenProperty>(
-                          "SampleNumberDensity", Kernel::IS_DEFAULT));
-  setPropertySettings("SampleMassDensity",
-                      make_unique<Kernel::EnabledWhenProperty>(
-                          "SampleNumberDensity", Kernel::IS_DEFAULT));
 }
 
 std::map<std::string, std::string> SetSampleMaterial::validateInputs() {
@@ -129,6 +122,31 @@ std::map<std::string, std::string> SetSampleMaterial::validateInputs() {
 
   if (a_number > 0 && z_number <= 0)
     result["AtomicNumber"] = "Specified MassNumber without AtomicNumber";
+
+  const double sampleNumberDensity = getProperty("SampleNumberDensity");
+  const double zParameter = getProperty("ZParameter");
+  const double unitCellVolume = getProperty("UnitCellVolume");
+  const double sampleMassDensity = getProperty("SampleMassDensity");
+
+  if (!isEmpty(zParameter)) {
+    if (isEmpty(unitCellVolume)) {
+      result["UnitCellVolume"] =
+          "UnitCellVolume must be provided with ZParameter";
+    }
+    if (!isEmpty(sampleNumberDensity)) {
+      result["ZParameter"] =
+          "Can not give ZParameter with SampleNumberDensity set";
+    }
+    if (!isEmpty(sampleMassDensity)) {
+      result["SampleMassDensity"] =
+          "Can not give SampleMassDensity with ZParameter set";
+    }
+  } else if (!isEmpty(sampleNumberDensity)) {
+    if (!isEmpty(sampleMassDensity)) {
+      result["SampleMassDensity"] =
+          "Can not give SampleMassDensity with SampleNumberDensity set";
+    }
+  }
 
   return result;
 }
@@ -169,7 +187,7 @@ void SetSampleMaterial::exec() {
     throw std::runtime_error("InputWorkspace does not have a sample object");
   }
 
-  boost::scoped_ptr<Material> mat;
+  boost::scoped_ptr<Material> material;
   MaterialBuilder builder;
 
   // determine the material
@@ -188,7 +206,7 @@ void SetSampleMaterial::exec() {
   double rho_m = getProperty("SampleMassDensity"); // in g/cc
   if (!isEmpty(rho_m))
     builder.setMassDensity(rho_m);
-  double rho = getProperty("SampleNumberDensity"); // in Angstroms-3
+  double rho = getProperty("SampleNumberDensity"); // in atoms / Angstroms^3
   if (isEmpty(rho)) {
     double zParameter = getProperty("ZParameter"); // number of atoms
     if (!isEmpty(zParameter)) {
@@ -208,47 +226,47 @@ void SetSampleMaterial::exec() {
       getProperty("ScatteringXSection")); // in barns
 
   // create the material
-  mat.reset(new Material(builder.build()));
+  material.reset(new Material(builder.build()));
 
   // calculate derived values
-  double bcoh_avg = mat->cohScatterLength();          // <b>
-  double btot_sq_avg = mat->totalScatterLengthSqrd(); // <b^2>
-  double normalizedLaue =
-      (btot_sq_avg - bcoh_avg * bcoh_avg) / (bcoh_avg * bcoh_avg);
-  if (btot_sq_avg == bcoh_avg * bcoh_avg)
+  const double bcoh_avg_sq = material->cohScatterLengthSqrd();   // <b>
+  const double btot_sq_avg = material->totalScatterLengthSqrd(); // <b^2>
+  double normalizedLaue = (btot_sq_avg - bcoh_avg_sq) / bcoh_avg_sq;
+  if (btot_sq_avg == bcoh_avg_sq)
     normalizedLaue = 0.;
 
   // set the material but leave the geometry unchanged
-  auto shapeObject = expInfo->sample().getShape(); // copy
-  shapeObject.setMaterial(*mat);
+  auto shapeObject = boost::shared_ptr<Geometry::IObject>(
+      expInfo->sample().getShape().cloneWithMaterial(*material));
   expInfo->mutableSample().setShape(shapeObject);
   g_log.information() << "Sample number density ";
-  if (isEmpty(mat->numberDensity())) {
+  if (isEmpty(material->numberDensity())) {
     g_log.information() << "was not specified\n";
   } else {
-    g_log.information() << "= " << mat->numberDensity()
+    g_log.information() << "= " << material->numberDensity()
                         << " atoms/Angstrom^3\n";
   }
   g_log.information() << "Cross sections for wavelength = "
                       << NeutronAtom::ReferenceLambda << " Angstroms\n"
-                      << "    Coherent " << mat->cohScatterXSection()
+                      << "    Coherent " << material->cohScatterXSection()
                       << " barns\n"
-                      << "    Incoherent " << mat->incohScatterXSection()
+                      << "    Incoherent " << material->incohScatterXSection()
                       << " barns\n"
-                      << "    Total " << mat->totalScatterXSection()
+                      << "    Total " << material->totalScatterXSection()
                       << " barns\n"
-                      << "    Absorption " << mat->absorbXSection()
+                      << "    Absorption " << material->absorbXSection()
                       << " barns\n"
                       << "PDF terms\n"
-                      << "    <b>^2 = " << (bcoh_avg * bcoh_avg) << "\n"
-                      << "    <b^2> = " << btot_sq_avg << "\n"
-                      << "    L     = " << normalizedLaue << "\n";
+                      << "    <b_coh>^2 = " << bcoh_avg_sq << "\n"
+                      << "    <b_tot^2> = " << btot_sq_avg << "\n"
+                      << "    L         = " << normalizedLaue << "\n";
 
   if (isEmpty(rho)) {
     g_log.information("Unknown value for number density");
   } else {
-    double smu = mat->totalScatterXSection(NeutronAtom::ReferenceLambda) * rho;
-    double amu = mat->absorbXSection(NeutronAtom::ReferenceLambda) * rho;
+    double smu =
+        material->totalScatterXSection(NeutronAtom::ReferenceLambda) * rho;
+    double amu = material->absorbXSection(NeutronAtom::ReferenceLambda) * rho;
     g_log.information() << "Anvred LinearScatteringCoef = " << smu << " 1/cm\n"
                         << "Anvred LinearAbsorptionCoef = " << amu << " 1/cm\n";
   }

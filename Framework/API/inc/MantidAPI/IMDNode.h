@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <string>
+#include <memory>
 #include <vector>
 #include "MantidKernel/VMD.h"
 #include "MantidGeometry/MDGeometry/MDTypes.h"
@@ -204,12 +205,14 @@ public:
   * @param signal [out] :: set to the integrated signal
   * @param errorSquared [out] :: set to the integrated squared error.
   * @param innerRadiusSquared :: radius^2 of inner background
+  * @param useOnePercentBackgroundCorrection :: if one percent correction should
+  *be applied to background.
    */
-  virtual void
-  integrateSphere(Mantid::API::CoordTransform &radiusTransform,
-                  const coord_t radiusSquared, signal_t &signal,
-                  signal_t &errorSquared,
-                  const coord_t innerRadiusSquared = 0.0) const = 0;
+  virtual void integrateSphere(
+      Mantid::API::CoordTransform &radiusTransform, const coord_t radiusSquared,
+      signal_t &signal, signal_t &errorSquared,
+      const coord_t innerRadiusSquared = 0.0,
+      const bool useOnePercentBackgroundCorrection = true) const = 0;
   /** Find the centroid of all events contained within by doing a weighted
   *average
   * of their coordinates.
@@ -275,10 +278,11 @@ public:
   // -------------------------------- Geometry/vertexes-Related
   // -------------------------------------------
   virtual std::vector<Mantid::Kernel::VMD> getVertexes() const = 0;
-  virtual coord_t *getVertexesArray(size_t &numVertices) const = 0;
-  virtual coord_t *getVertexesArray(size_t &numVertices,
-                                    const size_t outDimensions,
-                                    const bool *maskDim) const = 0;
+  virtual std::unique_ptr<coord_t[]>
+  getVertexesArray(size_t &numVertices) const = 0;
+  virtual std::unique_ptr<coord_t[]>
+  getVertexesArray(size_t &numVertices, const size_t outDimensions,
+                   const bool *maskDim) const = 0;
   virtual void transformDimensions(std::vector<double> &scaling,
                                    std::vector<double> &offset) = 0;
 

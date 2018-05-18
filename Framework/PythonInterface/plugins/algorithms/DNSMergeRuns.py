@@ -30,6 +30,9 @@ class DNSMergeRuns(PythonAlgorithm):
         """
         return 'Workflow\\MLZ\\DNS'
 
+    def seeAlso(self):
+        return [ "LoadDNSLegacy" ]
+
     def name(self):
         """
         Returns name
@@ -187,6 +190,7 @@ class DNSMergeRuns(PythonAlgorithm):
 
         self.setProperty("OutputWorkspace", outws)
         return
+
 
 # Register algorithm with Mantid
 AlgorithmFactory.subscribe(DNSMergeRuns)

@@ -2,10 +2,12 @@ from __future__ import (absolute_import, division, print_function)
 import unittest
 import mantid
 
-from sans.state.mask import (StateMask, get_mask_builder)
+from sans.state.mask import (StateMaskSANS2D, get_mask_builder)
 from sans.state.data import get_data_builder
 from sans.common.enums import (SANSFacility, SANSInstrument, DetectorType)
 from state_test_helper import (assert_validate_error, assert_raises_nothing)
+from sans.test_helper.file_information_mock import SANSFileInformationMock
+
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -27,7 +29,7 @@ class StateMaskTest(unittest.TestCase):
 
     @staticmethod
     def _get_mask_state(general_entries, detector_entries):
-        state = StateMask()
+        state = StateMaskSANS2D()
         # Setup the general mask settings
         mask_settings = {"radius_min": 12., "radius_max": 17.,
                          "bin_mask_general_start": [1., 2., 3.], "bin_mask_general_stop": [2., 3., 4.],
@@ -192,7 +194,8 @@ class StateMaskBuilderTest(unittest.TestCase):
     def test_that_mask_can_be_built(self):
         # Arrange
         facility = SANSFacility.ISIS
-        data_builder = get_data_builder(facility)
+        file_information = SANSFileInformationMock(run_number=74044)
+        data_builder = get_data_builder(facility, file_information)
         data_builder.set_sample_scatter("LOQ74044")
         data_builder.set_sample_scatter_period(3)
         data_info = data_builder.build()

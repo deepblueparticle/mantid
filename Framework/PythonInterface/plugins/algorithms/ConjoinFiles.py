@@ -11,6 +11,9 @@ class ConjoinFiles(PythonAlgorithm):
     def category(self):
         return "DataHandling\\Text"
 
+    def seeAlso(self):
+        return [ "ConjoinWorkspaces" ]
+
     def name(self):
         return "ConjoinFiles"
 
@@ -66,5 +69,6 @@ class ConjoinFiles(PythonAlgorithm):
                     DeleteWorkspace(run)
 
         self.setProperty("OutputWorkspace", mtd[wksp])
+
 
 AlgorithmFactory.subscribe(ConjoinFiles)

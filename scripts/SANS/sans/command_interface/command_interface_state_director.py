@@ -1,13 +1,14 @@
 from __future__ import (absolute_import, division, print_function)
 from sans.common.enums import (serializable_enum, DataType)
-from sans.user_file.user_file_state_director import UserFileStateDirectorISIS
+from sans.user_file.state_director import StateDirectorISIS
 from sans.state.data import get_data_builder
 from sans.user_file.user_file_parser import (UserFileParser)
 from sans.user_file.user_file_reader import (UserFileReader)
-from sans.user_file.user_file_common import (MonId, monitor_spectrum, OtherId, SampleId, GravityId, SetId, position_entry,
-                                             fit_general, FitId, monitor_file, mask_angle_entry, LimitsId, range_entry,
-                                             simple_range, DetectorId, event_binning_string_values, det_fit_range,
-                                             single_entry_with_detector)
+from sans.user_file.settings_tags import (MonId, monitor_spectrum, OtherId, SampleId, GravityId, SetId, position_entry,
+                                          fit_general, FitId, monitor_file, mask_angle_entry, LimitsId, range_entry,
+                                          simple_range, DetectorId, event_binning_string_values, det_fit_range,
+                                          single_entry_with_detector)
+from sans.common.file_information import SANSFileInformationFactory
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Commands
@@ -95,7 +96,7 @@ class CommandInterfaceStateDirector(object):
     def __init__(self, facility):
         super(CommandInterfaceStateDirector, self).__init__()
         self._commands = []
-        self._user_file_state_director = None
+        self._state_director = None
 
         self._processed_state_settings = {}
 
@@ -140,9 +141,14 @@ class CommandInterfaceStateDirector(object):
     def _get_data_state(self):
         # Get the data commands
         data_commands = self._get_data_commands()
+        data_elements = self._get_elements_with_key(DataCommandId.sample_scatter, data_commands)
+        data_element = data_elements[-1]
+        file_name = data_element.file_name
+        file_information_factory = SANSFileInformationFactory()
+        file_information = file_information_factory.create_sans_file_information(file_name)
 
         # Build the state data
-        data_builder = get_data_builder(self._facility)
+        data_builder = get_data_builder(self._facility, file_information)
         self._set_data_element(data_builder.set_sample_scatter, data_builder.set_sample_scatter_period,
                                DataCommandId.sample_scatter, data_commands)
         self._set_data_element(data_builder.set_sample_transmission, data_builder.set_sample_transmission_period,
@@ -215,7 +221,11 @@ class CommandInterfaceStateDirector(object):
         @param data_state: the data state.
         @return: a SANSState object.
         """
-        self._user_file_state_director = UserFileStateDirectorISIS(data_state)
+        file_name = data_state.sample_scatter
+        file_information_factory = SANSFileInformationFactory()
+        file_information = file_information_factory.create_sans_file_information(file_name)
+
+        self._state_director = StateDirectorISIS(data_state, file_information)
 
         # If we have a clean instruction in there, then we should apply it to all commands
         self._apply_clean_if_required()
@@ -230,8 +240,8 @@ class CommandInterfaceStateDirector(object):
             process_function(command)
 
         # The user file state director
-        self._user_file_state_director.add_state_settings(self._processed_state_settings)
-        return self._user_file_state_director.construct()
+        self._state_director.add_state_settings(self._processed_state_settings)
+        return self._state_director.construct()
 
     def _set_up_method_map(self):
         """

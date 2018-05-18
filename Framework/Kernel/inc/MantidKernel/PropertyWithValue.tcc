@@ -259,7 +259,7 @@ operator+=(Property const *right) {
  *  @return the reference to itself
  */
 template <typename TYPE>
-TYPE &PropertyWithValue<TYPE>::operator=(const TYPE &value) {
+PropertyWithValue<TYPE> &PropertyWithValue<TYPE>::operator=(const TYPE &value) {
   TYPE oldValue = m_value;
   if (std::is_same<TYPE, std::string>::value) {
     std::string valueCopy = toString(value);
@@ -271,11 +271,11 @@ TYPE &PropertyWithValue<TYPE>::operator=(const TYPE &value) {
     m_value = value;
   }
   std::string problem = this->isValid();
-  if (problem == "") {
-    return m_value;
+  if (problem.empty()) {
+    return *this;
   } else if (problem == "_alias") {
     m_value = getValueForAlias(value);
-    return m_value;
+    return *this;
   } else {
     m_value = oldValue;
     throw std::invalid_argument(problem);

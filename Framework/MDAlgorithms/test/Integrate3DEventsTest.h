@@ -132,7 +132,9 @@ public:
     // synthesize two peaks
     V3D peak_1(20, 0, 0);
     V3D peak_2(0, 20, 0);
-    std::vector<std::pair<double, V3D>> peak_q_list{{1., peak_1}, {1., peak_2}};
+    V3D peak_3(0, 0, 20);
+    std::vector<std::pair<double, V3D>> peak_q_list{
+        {1., peak_1}, {1., peak_2}, {1., peak_3}};
 
     // synthesize a UB-inverse to map
     DblMatrix UBinv(3, 3, false); // Q to h,k,l
@@ -145,6 +147,7 @@ public:
     const int numWeakEvents = 100;
     generatePeak(event_Qs, peak_1, 0.1, numStrongEvents, 1); // strong peak
     generatePeak(event_Qs, peak_2, 0.1, numWeakEvents, 1);   // weak peak
+    generatePeak(event_Qs, peak_2, 0.1, 0, 1); // non-existant peak
 
     IntegrationParameters params;
     params.peakRadius = 1.0;
@@ -182,8 +185,20 @@ public:
     // to be weighted by the fraction of strong peak contained in a standard
     // core. This is not exactly the same because of the weighting from the
     // strong peak
-    TS_ASSERT_DELTA(weak_inti, 83.6960, 0.5);
-    TS_ASSERT_DELTA(weak_sigi, 8.37, 0.1);
+    TS_ASSERT_DELTA(weak_inti, 83.696, 0.5);
+    TS_ASSERT_DELTA(weak_sigi, 0.403, 0.1);
+
+    weak_inti = 0;
+    weak_sigi = 0;
+    integrator.integrateWeakPeak(params, shape, result.second, peak_3,
+                                 weak_inti, weak_sigi);
+
+    // Check the integrated intensity for a weak peak is exactly what we set it
+    // to be weighted by the fraction of strong peak contained in a standard
+    // core. This is not exactly the same because of the weighting from the
+    // strong peak
+    TS_ASSERT_DELTA(weak_inti, 0, 0.5);
+    TS_ASSERT_DELTA(weak_sigi, 0, 0.1);
   }
 
   void test_integrateWeakPeakWithBackground() {
@@ -245,7 +260,7 @@ public:
     // core. This is not exactly the same because of the weighting from the
     // strong peak
     TS_ASSERT_DELTA(weak_inti, numWeakEvents, 35);
-    TS_ASSERT_DELTA(weak_sigi, 8.62, 0.2);
+    TS_ASSERT_DELTA(weak_sigi, 0.445, 0.2);
   }
 
   void test_estimateSignalToNoiseRatioInPerfectCase() {
@@ -283,12 +298,24 @@ public:
     const auto ratio2 = integrator.estimateSignalToNoiseRatio(params, peak_2);
     const auto ratio3 = integrator.estimateSignalToNoiseRatio(params, peak_3);
 
-    TS_ASSERT_DELTA(ratio1, numStrongEvents, 0.0001);
-    TS_ASSERT_DELTA(ratio2, numWeakEvents, 0.0001);
-    TS_ASSERT_DELTA(ratio3, numWeakEvents / 2, 0.0001);
+    TS_ASSERT_DELTA(ratio1, numStrongEvents / 100, 1e-4);
+    TS_ASSERT_DELTA(ratio2, numWeakEvents / 10, 1e-4);
+    TS_ASSERT_DELTA(ratio3, 7.071, 1e-4);
   }
 
-  void test_estimateSignalToNoiseRatioWithBackground() {
+  void test_estimateSignalToNoiseRatioWithBackgroundAndOnePercentCulling() {
+    doTestSignalToNoiseRatio(true, 99.3898, 5.4788, 1.0597);
+  }
+
+  void test_estimateSignalToNoiseRatioWithBackgroundAndNoOnePercentCulling() {
+    doTestSignalToNoiseRatio(false, 99.3417, 5.0972, 0.5821);
+  }
+
+private:
+  void doTestSignalToNoiseRatio(const bool useOnePercentBackgroundCorrection,
+                                const double expectedRatio1,
+                                const double expectedRatio2,
+                                const double expectedRatio3) {
     V3D peak_1(20, 0, 0);
     V3D peak_2(0, 20, 0);
     V3D peak_3(0, 0, 20);
@@ -310,7 +337,8 @@ public:
     generateUniformBackground(event_Qs, 10, -30, 30);
 
     // Create integraton region + events & UB
-    Integrate3DEvents integrator(peak_q_list, UBinv, 1.5);
+    Integrate3DEvents integrator(peak_q_list, UBinv, 1.5,
+                                 useOnePercentBackgroundCorrection);
     integrator.addEvents(event_Qs, false);
 
     IntegrationParameters params;
@@ -324,9 +352,9 @@ public:
     const auto ratio2 = integrator.estimateSignalToNoiseRatio(params, peak_2);
     const auto ratio3 = integrator.estimateSignalToNoiseRatio(params, peak_3);
 
-    TS_ASSERT_DELTA(ratio1, 171.90, 0.05);
-    TS_ASSERT_DELTA(ratio2, 1.2632, 0.05);
-    TS_ASSERT_DELTA(ratio3, 0.1824, 0.05);
+    TS_ASSERT_DELTA(ratio1, expectedRatio1, 0.05);
+    TS_ASSERT_DELTA(ratio2, expectedRatio2, 0.05);
+    TS_ASSERT_DELTA(ratio3, expectedRatio3, 0.05);
   }
 
   /** Generate a symmetric Gaussian peak

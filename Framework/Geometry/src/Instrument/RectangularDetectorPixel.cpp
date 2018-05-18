@@ -29,7 +29,7 @@ RectangularDetectorPixel::RectangularDetectorPixel(
  * @param col :: column of the pixel in the panel
  */
 RectangularDetectorPixel::RectangularDetectorPixel(
-    const std::string &name, int id, boost::shared_ptr<Object> shape,
+    const std::string &name, int id, boost::shared_ptr<IObject> shape,
     IComponent *parent, RectangularDetector *panel, size_t row, size_t col)
     : Detector(name, id, shape, parent), m_panel(panel), m_row(row),
       m_col(col) {
@@ -47,6 +47,7 @@ RectangularDetectorPixel::RectangularDetectorPixel(
 Kernel::V3D RectangularDetectorPixel::getRelativePos() const {
   if (m_map && hasDetectorInfo())
     return Detector::getRelativePos();
+
   // Calculate the x,y position
   double x = m_panel->xstart() + double(m_col) * m_panel->xstep();
   double y = m_panel->ystart() + double(m_row) * m_panel->ystep();

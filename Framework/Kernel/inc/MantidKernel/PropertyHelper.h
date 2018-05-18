@@ -9,6 +9,7 @@
 #include "MantidKernel/OptionalBool.h"
 #include "MantidKernel/Strings.h"
 #include "MantidKernel/StringTokenizer.h"
+#include "MantidKernel/WarningSuppressions.h"
 
 #include <type_traits>
 
@@ -92,7 +93,8 @@ std::string toPrettyString(
     bool collapseLists = true, const std::string &delimiter = ",",
     const std::string &unusedDelimiter = "+",
     typename std::enable_if<!(std::is_integral<T>::value &&
-                              std::is_arithmetic<T>::value)>::type * = 0) {
+                              std::is_arithmetic<T>::value)>::type * =
+        nullptr) {
   UNUSED_ARG(unusedDelimiter);
   UNUSED_ARG(collapseLists);
   return Strings::shorten(Strings::join(value.begin(), value.end(), delimiter),
@@ -112,7 +114,7 @@ std::string toPrettyString(
     bool collapseLists = true, const std::string &delimiter = ",",
     const std::string &listDelimiter = "-",
     typename std::enable_if<std::is_integral<T>::value &&
-                            std::is_arithmetic<T>::value>::type * = 0) {
+                            std::is_arithmetic<T>::value>::type * = nullptr) {
   std::string retVal;
   if (collapseLists) {
     retVal = Strings::joinCompress(value.begin(), value.end(), delimiter,
@@ -128,6 +130,9 @@ std::string toPrettyString(
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-function"
 #endif
+// clang-format off
+GCC_DIAG_OFF(unused-function)
+// clang-format on
 /** Explicit specialization for a property of type std::vector<bool>.
 *   This will catch Vectors of char, double, float etc.
 *   This simply concatenates the values using a delimiter
@@ -142,6 +147,9 @@ std::string toPrettyString(
   return Strings::shorten(Strings::join(value.begin(), value.end(), delimiter),
                           maxLength);
 }
+// clang-format off
+GCC_DIAG_ON(unused-function)
+// clang-format on
 #if __clang__
 #pragma clang diagnostic pop
 #endif
@@ -202,7 +210,7 @@ namespace detail {
 template <typename T>
 void toValue(const std::string &strvalue, std::vector<T> &value,
              std::true_type) {
-  typedef Mantid::Kernel::StringTokenizer tokenizer;
+  using tokenizer = Mantid::Kernel::StringTokenizer;
   tokenizer values(strvalue, ",",
                    tokenizer::TOK_IGNORE_EMPTY | tokenizer::TOK_TRIM);
   value.clear();
@@ -216,7 +224,7 @@ template <typename T>
 void toValue(const std::string &strvalue, std::vector<T> &value,
              std::false_type) {
   // Split up comma-separated properties
-  typedef Mantid::Kernel::StringTokenizer tokenizer;
+  using tokenizer = Mantid::Kernel::StringTokenizer;
   tokenizer values(strvalue, ",",
                    tokenizer::TOK_IGNORE_EMPTY | tokenizer::TOK_TRIM);
 
@@ -255,7 +263,7 @@ template <typename T>
 void toValue(const std::string &strvalue, std::vector<std::vector<T>> &value,
              const std::string &outerDelimiter = ",",
              const std::string &innerDelimiter = "+") {
-  typedef Mantid::Kernel::StringTokenizer tokenizer;
+  using tokenizer = Mantid::Kernel::StringTokenizer;
   tokenizer tokens(strvalue, outerDelimiter,
                    tokenizer::TOK_IGNORE_EMPTY | tokenizer::TOK_TRIM);
 

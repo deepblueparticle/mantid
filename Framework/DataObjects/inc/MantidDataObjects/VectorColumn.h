@@ -93,7 +93,7 @@ public:
   }
 
   /// Set item from a stream
-  void read(const size_t index, std::istream &in) override {
+  void read(const size_t index, std::istringstream &in) override {
     std::string s;
     in >> s;
     read(index, s);
@@ -101,6 +101,8 @@ public:
 
   /// Specialized type check
   bool isBool() const override { return false; }
+
+  bool isNumber() const override { return false; }
 
   /// Overall memory size taken by the column (bytes)
   long int sizeOfData() const override {

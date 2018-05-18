@@ -11,7 +11,7 @@
 #include "MantidTestHelpers/ScopedFileHelper.h"
 #include "MantidAPI/AlgorithmManager.h"
 #include "MantidAPI/AnalysisDataService.h"
-#include "MantidAPI/DetectorInfo.h"
+#include "MantidGeometry/Instrument/DetectorInfo.h"
 #include "MantidAPI/SpectrumInfo.h"
 
 using namespace Mantid;
@@ -97,6 +97,61 @@ public:
       double y = maskws->y(iws)[0];
       if (iws == 34 || iws == 1000 || iws == 2000) {
         // These 3 workspace index are masked
+        TS_ASSERT_DELTA(y, 1.0, 1.0E-5);
+      } else {
+        // Unmasked
+        TS_ASSERT_DELTA(y, 0.0, 1.0E-5);
+      }
+    }
+  }
+
+  void test_DetectorIDs_reuse_LoadMask_instance() {
+    // 1. Generate masking files
+    std::vector<int> banks1;
+    std::vector<int> detids{26284, 27250};
+    auto maskDetFile1 = genMaskingFile("maskingdet1.xml", detids, banks1);
+    detids = {28268};
+    auto maskDetFile2 = genMaskingFile("maskingdet2.xml", detids, banks1);
+
+    // 2. Run
+    LoadMask loadfile;
+    loadfile.initialize();
+
+    loadfile.setProperty("Instrument", "VULCAN");
+    loadfile.setProperty("InputFile", maskDetFile1.getFileName());
+    loadfile.setProperty("OutputWorkspace", "VULCAN_Mask_Detectors");
+
+    TS_ASSERT_EQUALS(loadfile.execute(), true);
+    auto maskws =
+        AnalysisDataService::Instance().retrieveWS<DataObjects::MaskWorkspace>(
+            "VULCAN_Mask_Detectors");
+
+    // 3. Check
+    for (size_t iws = 0; iws < maskws->getNumberHistograms(); iws++) {
+      double y = maskws->y(iws)[0];
+      if (iws == 34 || iws == 1000) {
+        // These 2 workspace index are masked
+        TS_ASSERT_DELTA(y, 1.0, 1.0E-5);
+      } else {
+        // Unmasked
+        TS_ASSERT_DELTA(y, 0.0, 1.0E-5);
+      }
+    }
+
+    loadfile.setProperty("Instrument", "VULCAN");
+    loadfile.setProperty("InputFile", maskDetFile2.getFileName());
+    loadfile.setProperty("OutputWorkspace", "VULCAN_Mask_Detectors");
+
+    TS_ASSERT_EQUALS(loadfile.execute(), true);
+    maskws =
+        AnalysisDataService::Instance().retrieveWS<DataObjects::MaskWorkspace>(
+            "VULCAN_Mask_Detectors");
+
+    // 3. Check
+    for (size_t iws = 0; iws < maskws->getNumberHistograms(); iws++) {
+      double y = maskws->y(iws)[0];
+      if (iws == 2000) {
+        // This 1 workspace index is masked
         TS_ASSERT_DELTA(y, 1.0, 1.0E-5);
       } else {
         // Unmasked
@@ -477,8 +532,8 @@ public:
       ss << "</detids>\n";
     }
 
-    for (size_t i = 0; i < banks.size(); i++) {
-      ss << "<component>bank" << banks[i] << "</component>\n";
+    for (int bank : banks) {
+      ss << "<component>bank" << bank << "</component>\n";
     }
 
     // 4. End of file
@@ -497,8 +552,8 @@ public:
     std::stringstream ss;
 
     // 1. Single spectra
-    for (size_t i = 0; i < singlespectra.size(); i++) {
-      ss << singlespectra[i] << " ";
+    for (int i : singlespectra) {
+      ss << i << " ";
     }
     ss << '\n';
 

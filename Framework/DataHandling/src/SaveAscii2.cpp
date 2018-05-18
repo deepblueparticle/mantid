@@ -166,7 +166,7 @@ void SaveAscii2::exec() {
   const std::string custom = getPropertyValue("CustomSeparator");
   // If the custom separator property is not empty, then we use that under any
   // circumstance.
-  if (custom != "") {
+  if (!custom.empty()) {
     m_sep = custom;
   }
   // Else if the separator drop down choice is not UserDefined then we use that.
@@ -268,8 +268,8 @@ void SaveAscii2::exec() {
     }
   } else {
     Progress progress(this, 0.0, 1.0, idx.size());
-    for (auto i = idx.begin(); i != idx.end(); ++i) {
-      writeSpectrum(*i, file);
+    for (int i : idx) {
+      writeSpectrum(i, file);
       progress.report();
     }
   }
@@ -357,7 +357,7 @@ void SaveAscii2::populateQMetaData() {
         boost::shared_ptr<const Geometry::IDetector> detector(
             &spectrumInfo.detector(i), NoDeleting());
         efixed = m_ws->getEFixed(detector);
-      } catch (std::runtime_error) {
+      } catch (std::runtime_error &) {
         throw;
       }
     } else {
@@ -365,7 +365,7 @@ void SaveAscii2::populateQMetaData() {
       efixed = DBL_MIN;
     }
     // Convert to MomentumTransfer
-    auto qValue = Kernel::UnitConversion::run(theta, efixed);
+    auto qValue = Kernel::UnitConversion::convertToElasticQ(theta, efixed);
     auto qValueStr = boost::lexical_cast<std::string>(qValue);
     qValues.push_back(qValueStr);
   }

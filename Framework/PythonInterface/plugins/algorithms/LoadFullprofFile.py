@@ -21,6 +21,9 @@ class LoadFullprofFile(PythonAlgorithm):
         """
         return "Diffraction\\DataHandling"
 
+    def seeAlso(self):
+        return [ "LoadFullprofResolution" ]
+
     def name(self):
         """
         """
@@ -415,6 +418,7 @@ class LoadFullprofFile(PythonAlgorithm):
             dataws.dataE(0)[i] = vece[i]
 
         return (tablews, dataws)
+
 
 # Register algorithm with Mantid
 AlgorithmFactory.subscribe(LoadFullprofFile)

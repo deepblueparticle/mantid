@@ -88,7 +88,7 @@ herr_t LoadSassena::dataSetDouble(const hid_t &h5file,
 
 /* Helper object and function to sort modulus of Q-vectors
  */
-typedef std::pair<double, int> mypair;
+using mypair = std::pair<double, int>;
 bool compare(const mypair &left, const mypair &right) {
   return left.first < right.first;
 }
@@ -136,6 +136,7 @@ LoadSassena::loadQvectors(const hid_t &h5file, API::WorkspaceGroup_sptr gws,
 
   if (getProperty("SortByQVectors")) {
     std::vector<mypair> qvmodpair;
+    qvmodpair.reserve(nq);
     for (int iq = 0; iq < nq; iq++)
       qvmodpair.emplace_back(qvmod[iq], iq);
     std::sort(qvmodpair.begin(), qvmodpair.end(), compare);

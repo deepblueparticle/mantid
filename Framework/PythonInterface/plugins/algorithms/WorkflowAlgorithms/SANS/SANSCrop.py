@@ -4,14 +4,15 @@
 
 from __future__ import (absolute_import, division, print_function)
 from mantid.kernel import (Direction, StringListValidator)
-from mantid.api import (DataProcessorAlgorithm, MatrixWorkspaceProperty, AlgorithmFactory, PropertyMode, Progress)
+from mantid.api import (DistributedDataProcessorAlgorithm, MatrixWorkspaceProperty, AlgorithmFactory, PropertyMode, Progress)
 
 from sans.common.constants import EMPTY_NAME
 from sans.common.enums import DetectorType
 from sans.common.general_functions import (create_unmanaged_algorithm, append_to_sans_file_tag)
+from sans.algorithm_detail.crop_helper import get_component_name
 
 
-class SANSCrop(DataProcessorAlgorithm):
+class SANSCrop(DistributedDataProcessorAlgorithm):
     def category(self):
         return 'SANS\\Crop'
 
@@ -28,8 +29,10 @@ class SANSCrop(DataProcessorAlgorithm):
                              doc='The input workspace')
 
         # The component, i.e. HAB or LAB
-        allowed_detectors = StringListValidator(["LAB", "HAB"])
-        self.declareProperty("Component", "LAB", validator=allowed_detectors, direction=Direction.Input,
+        allowed_detectors = StringListValidator([DetectorType.to_string(DetectorType.LAB),
+                                                 DetectorType.to_string(DetectorType.HAB)])
+        self.declareProperty("Component", DetectorType.to_string(DetectorType.LAB), validator=allowed_detectors,
+                             direction=Direction.Input,
                              doc="The component of the instrument to which we want to crop.")
 
         self.declareProperty(MatrixWorkspaceProperty("OutputWorkspace", '',
@@ -61,27 +64,9 @@ class SANSCrop(DataProcessorAlgorithm):
         progress.report("Finished cropping")
 
     def _get_component(self, workspace):
-        comp = self.getProperty("Component").value
-        is_hab = comp == "HAB"
-        if is_hab:
-            component = DetectorType.HAB
-        else:
-            component = DetectorType.LAB
-
-        instrument = workspace.getInstrument()
-        instrument_name = instrument.getName().strip()
-
-        # TODO: Can clean up here: The detector bank selection could be made nicer here, but it is currently not
-        #                          essential.
-        if instrument_name == "SANS2D":
-            component = "front-detector" if component is DetectorType.HAB else "rear-detector"
-        elif instrument_name == "LOQ":
-            component = "HAB" if component is DetectorType.HAB else "main-detector-bank"
-        elif instrument_name == "LARMOR":
-            component = "DetectorBench"
-        else:
-            raise RuntimeError("SANSCrop: The instrument {0} is currently not supported.".format(instrument_name))
-        return component
+        component_as_string = self.getProperty("Component").value
+        component = DetectorType.from_string(component_as_string)
+        return get_component_name(workspace, component)
 
 
 # Register algorithm with Mantid

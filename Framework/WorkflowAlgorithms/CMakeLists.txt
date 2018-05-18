@@ -16,11 +16,13 @@ set ( SRC_FILES
 	src/EQSANSMonitorTOF.cpp
 	src/EQSANSPatchSensitivity.cpp
 	src/EQSANSQ2D.cpp
+	src/ExtractQENSMembers.cpp
 	src/HFIRDarkCurrentSubtraction.cpp
 	src/HFIRInstrument.cpp
 	src/HFIRLoad.cpp
 	src/HFIRSANSNormalise.cpp
 	src/IMuonAsymmetryCalculator.cpp
+	src/IqtFitSequential.cpp
 	src/LoadEventAndCompress.cpp
 	src/MuonGroupAsymmetryCalculator.cpp
 	src/MuonGroupCalculator.cpp
@@ -28,7 +30,7 @@ set ( SRC_FILES
 	src/MuonProcess.cpp
 	src/MuonPairAsymmetryCalculator.cpp
 	src/ProcessIndirectFitParameters.cpp
-	src/RefReduction.cpp
+	src/QENSFitSequential.cpp
 	src/RefRoi.cpp
 	src/SANSBeamFinder.cpp
 	src/SANSBeamFluxCorrection.cpp
@@ -62,11 +64,13 @@ set ( INC_FILES
 	inc/MantidWorkflowAlgorithms/EQSANSMonitorTOF.h
 	inc/MantidWorkflowAlgorithms/EQSANSPatchSensitivity.h
 	inc/MantidWorkflowAlgorithms/EQSANSQ2D.h
+	inc/MantidWorkflowAlgorithms/ExtractQENSMembers.h
 	inc/MantidWorkflowAlgorithms/HFIRDarkCurrentSubtraction.h
 	inc/MantidWorkflowAlgorithms/HFIRInstrument.h
 	inc/MantidWorkflowAlgorithms/HFIRLoad.h
 	inc/MantidWorkflowAlgorithms/HFIRSANSNormalise.h
 	inc/MantidWorkflowAlgorithms/IMuonAsymmetryCalculator.h
+	inc/MantidWorkflowAlgorithms/IqtFitSequential.h
 	inc/MantidWorkflowAlgorithms/LoadEventAndCompress.h
 	inc/MantidWorkflowAlgorithms/MuonGroupAsymmetryCalculator.h
 	inc/MantidWorkflowAlgorithms/MuonGroupCalculator.h
@@ -74,7 +78,7 @@ set ( INC_FILES
 	inc/MantidWorkflowAlgorithms/MuonProcess.h
 	inc/MantidWorkflowAlgorithms/MuonPairAsymmetryCalculator.h
 	inc/MantidWorkflowAlgorithms/ProcessIndirectFitParameters.h
-	inc/MantidWorkflowAlgorithms/RefReduction.h
+	inc/MantidWorkflowAlgorithms/QENSFitSequential.h
 	inc/MantidWorkflowAlgorithms/RefRoi.h
 	inc/MantidWorkflowAlgorithms/SANSBeamFinder.h
 	inc/MantidWorkflowAlgorithms/SANSBeamFluxCorrection.h
@@ -89,10 +93,12 @@ set ( INC_FILES
 
 set ( TEST_FILES
 	ConvolutionFitSequentialTest.h
+	ExtractQENSMembersTest.h
 	IMuonAsymmetryCalculatorTest.h
 	LoadEventAndCompressTest.h
 	MuonProcessTest.h
 	ProcessIndirectFitParametersTest.h
+	QENSFitSequentialTest.h
 	SANSSolidAngleCorrectionTest.h
 	StepScanTest.h
 )
@@ -119,10 +125,13 @@ enable_precompiled_headers( inc/MantidWorkflowAlgorithms/PrecompiledHeader.h SRC
 # Add the target for this directory
 add_library ( WorkflowAlgorithms ${SRC_FILES} ${INC_FILES})
 # Set the name of the generated library
-set_target_properties ( WorkflowAlgorithms PROPERTIES OUTPUT_NAME MantidWorkflowAlgorithms )
+set_target_properties ( WorkflowAlgorithms PROPERTIES OUTPUT_NAME MantidWorkflowAlgorithms
+)
 
 if (OSX_VERSION VERSION_GREATER 10.8)
-  set_target_properties ( WorkflowAlgorithms PROPERTIES INSTALL_RPATH "@loader_path/../Contents/MacOS")
+  set_target_properties(WorkflowAlgorithms PROPERTIES INSTALL_RPATH "@loader_path/../Contents/MacOS")
+elseif ( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
+  set_target_properties(WorkflowAlgorithms PROPERTIES INSTALL_RPATH "\$ORIGIN/../${LIB_DIR}")
 endif ()
 
 # Add to the 'Framework' group in VS

@@ -16,6 +16,9 @@ class LoadVisionInelastic(PythonAlgorithm):
     def category(self):
         return "DataHandling\\Nexus"
 
+    def seeAlso(self):
+        return [ "LoadVisionElasticBS","LoadVisionElasticEQ" ]
+
     def name(self):
         return "LoadVisionInelastic"
 
@@ -50,6 +53,7 @@ class LoadVisionInelastic(PythonAlgorithm):
 
         self.setProperty("OutputWorkspace", ws)
         mantid.simpleapi.DeleteWorkspace(wksp_name)
+
 
 # Register
 AlgorithmFactory.subscribe(LoadVisionInelastic)

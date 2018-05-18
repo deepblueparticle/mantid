@@ -102,6 +102,13 @@ void MDNormSCD::init() {
                   "An input workspace containing momentum integrated vanadium "
                   "(a measure of the solid angle).");
 
+  declareProperty(make_unique<PropertyWithValue<bool>>("SkipSafetyCheck", false,
+                                                       Direction::Input),
+                  "If set to true, the algorithm does "
+                  "not check history if the workspace was modified since the"
+                  "ConvertToMD algorithm was run, and assume that the elastic "
+                  "mode is used.");
+
   declareProperty(make_unique<WorkspaceProperty<IMDHistoWorkspace>>(
                       "TemporaryNormalizationWorkspace", "", Direction::Input,
                       PropertyMode::Optional),
@@ -159,7 +166,8 @@ void MDNormSCD::exec() {
  */
 void MDNormSCD::cacheInputs() {
   m_inputWS = getProperty("InputWorkspace");
-  if (inputEnergyMode() != "Elastic") {
+  bool skipCheck = getProperty("SkipSafetyCheck");
+  if (!skipCheck && inputEnergyMode() != "Elastic") {
     throw std::invalid_argument("Invalid energy transfer mode. Algorithm "
                                 "currently only supports elastic data.");
   }
@@ -230,7 +238,8 @@ MDHistoWorkspace_sptr MDNormSCD::binInputWS() {
     const auto &propName = prop->name();
     if (propName != "FluxWorkspace" && propName != "SolidAngleWorkspace" &&
         propName != "TemporaryNormalizationWorkspace" &&
-        propName != "OutputNormalizationWorkspace") {
+        propName != "OutputNormalizationWorkspace" &&
+        propName != "SkipSafetyCheck") {
       binMD->setPropertyValue(propName, prop->value());
     }
   }
@@ -358,21 +367,21 @@ MDNormSCD::findIntergratedDimensions(const std::vector<coord_t> &otherDimValues,
 void MDNormSCD::cacheDimensionXValues() {
   if (!m_hIntegrated) {
     auto &hDim = *m_normWS->getDimension(m_hIdx);
-    m_hX.resize(hDim.getNBins());
+    m_hX.resize(hDim.getNBoundaries());
     for (size_t i = 0; i < m_hX.size(); ++i) {
       m_hX[i] = hDim.getX(i);
     }
   }
   if (!m_kIntegrated) {
     auto &kDim = *m_normWS->getDimension(m_kIdx);
-    m_kX.resize(kDim.getNBins());
+    m_kX.resize(kDim.getNBoundaries());
     for (size_t i = 0; i < m_kX.size(); ++i) {
       m_kX[i] = kDim.getX(i);
     }
   }
   if (!m_lIntegrated) {
     auto &lDim = *m_normWS->getDimension(m_lIdx);
-    m_lX.resize(lDim.getNBins());
+    m_lX.resize(lDim.getNBoundaries());
     for (size_t i = 0; i < m_lX.size(); ++i) {
       m_lX[i] = lDim.getX(i);
     }
@@ -394,7 +403,7 @@ void MDNormSCD::calculateNormalization(
       getProperty("SolidAngleWorkspace");
 
   const auto &exptInfoZero = *(m_inputWS->getExperimentInfo(0));
-  typedef Kernel::PropertyWithValue<std::vector<double>> VectorDoubleProperty;
+  using VectorDoubleProperty = Kernel::PropertyWithValue<std::vector<double>>;
   auto *rubwLog =
       dynamic_cast<VectorDoubleProperty *>(exptInfoZero.getLog("RUBW_MATRIX"));
   if (!rubwLog) {
@@ -424,6 +433,7 @@ void MDNormSCD::calculateNormalization(
   std::vector<double> xValues, yValues;
   std::vector<coord_t> pos, posNew;
   auto prog = make_unique<API::Progress>(this, 0.3, 1.0, ndets);
+  // cppcheck-suppress syntaxError
 PRAGMA_OMP(parallel for private(intersections, xValues, yValues, pos, posNew) if (Kernel::threadSafe(*integrFlux)))
 for (int64_t i = 0; i < ndets; i++) {
   PARALLEL_START_INTERUPT_REGION

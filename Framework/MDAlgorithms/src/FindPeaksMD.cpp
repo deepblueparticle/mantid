@@ -4,7 +4,11 @@
 #include "MantidDataObjects/MDHistoWorkspace.h"
 #include "MantidDataObjects/PeaksWorkspace.h"
 #include "MantidGeometry/Crystal/EdgePixel.h"
+#include "MantidGeometry/Instrument/Goniometer.h"
+#include "MantidGeometry/Objects/InstrumentRayTracer.h"
 #include "MantidKernel/BoundedValidator.h"
+#include "MantidKernel/EnabledWhenProperty.h"
+#include "MantidKernel/ListValidator.h"
 #include "MantidKernel/VMD.h"
 
 #include <map>
@@ -96,10 +100,14 @@ void addDetectors(DataObjects::Peak &peak, MDBoxBase<MDE, nd> &box) {
   // Compile time deduction of the correct function call
   addDetectors(peak, box, IsFullEvent<MDE, nd>());
 }
-}
+} // namespace
 
 // Register the algorithm into the AlgorithmFactory
 DECLARE_ALGORITHM(FindPeaksMD)
+
+const std::string FindPeaksMD::volumeNormalization = "VolumeNormalization";
+const std::string FindPeaksMD::numberOfEventsNormalization =
+    "NumberOfEventsNormalization";
 
 //----------------------------------------------------------------------------------------------
 /** Constructor
@@ -129,6 +137,26 @@ void FindPeaksMD::init() {
                                                           Direction::Input),
                   "Maximum number of peaks to find. Default: 500.");
 
+  std::vector<std::string> strategy = {volumeNormalization,
+                                       numberOfEventsNormalization};
+  declareProperty(
+      "PeakFindingStrategy", volumeNormalization,
+      boost::make_shared<StringListValidator>(strategy),
+      "Strategy for finding peaks in an MD workspace."
+      "1. VolumeNormalization: This is the default strategy. It will sort "
+      "all boxes in the workspace by deacresing order of signal density "
+      "(total weighted event sum divided by box volume).\n"
+      "2.NumberOfEventsNormalization: This option is only valid for "
+      "MDEventWorkspaces. It will use the total weighted event sum divided"
+      "by the number of events. This can improve peak finding for "
+      "histogram-based"
+      "raw data which has been converted to an EventWorkspace. The threshold "
+      "for"
+      "peak finding can be controlled by the SingalThresholdFactor property "
+      "which should"
+      "be larger than 1. Note that this approach does not work for event-based "
+      "raw data.\n");
+
   declareProperty(make_unique<PropertyWithValue<double>>(
                       "DensityThresholdFactor", 10.0, Direction::Input),
                   "The overall signal density of the workspace will be "
@@ -136,6 +164,45 @@ void FindPeaksMD::init() {
                   "to get a threshold signal density below which boxes are NOT "
                   "considered to be peaks. See the help.\n"
                   "Default: 10.0");
+
+  setPropertySettings("DensityThresholdFactor",
+                      make_unique<EnabledWhenProperty>(
+                          "PeakFindingStrategy",
+                          Mantid::Kernel::ePropertyCriterion::IS_EQUAL_TO,
+                          volumeNormalization));
+
+  declareProperty(make_unique<PropertyWithValue<double>>(
+                      "SignalThresholdFactor", 1.5, Direction::Input),
+                  "The overal signal value (not density!) normalized by the "
+                  "number of events is compared to the specified signal "
+                  "threshold. Boxes which are below this threshold are NOT "
+                  "considered to be peaks."
+                  "This property is enabled when the PeakFindingStrategy has "
+                  "been set to NumberOfEventsNormalization.\n"
+                  "The value of boxes which contain peaks will be above 1. See "
+                  "the below for more information.\n"
+                  "Default: 1.50");
+
+  setPropertySettings("SignalThresholdFactor",
+                      make_unique<EnabledWhenProperty>(
+                          "PeakFindingStrategy",
+                          Mantid::Kernel::ePropertyCriterion::IS_EQUAL_TO,
+                          numberOfEventsNormalization));
+
+  declareProperty("CalculateGoniometerForCW", false,
+                  "This will calculate the goniometer rotation (around y-axis "
+                  "only) for a constant wavelength. This only works for Q "
+                  "sample workspaces.");
+
+  auto nonNegativeDbl = boost::make_shared<BoundedValidator<double>>();
+  nonNegativeDbl->setLower(0);
+  declareProperty("Wavelength", DBL_MAX, nonNegativeDbl,
+                  "Wavelength to use when calculating goniometer angle");
+
+  setPropertySettings("Wavelength",
+                      make_unique<EnabledWhenProperty>(
+                          "CalculateGoniometerForCW",
+                          Mantid::Kernel::ePropertyCriterion::IS_NOT_DEFAULT));
 
   declareProperty(make_unique<WorkspaceProperty<PeaksWorkspace>>(
                       "OutputWorkspace", "", Direction::Output),
@@ -192,10 +259,12 @@ void FindPeaksMD::readExperimentInfo(const ExperimentInfo_sptr &ei,
  *
  * @param Q :: Q_lab or Q_sample, depending on workspace
  * @param binCount :: bin count to give to the peak.
+ * @param tracer :: Ray tracer to use for detector finding
  */
-void FindPeaksMD::addPeak(const V3D &Q, const double binCount) {
+void FindPeaksMD::addPeak(const V3D &Q, const double binCount,
+                          const Geometry::InstrumentRayTracer &tracer) {
   try {
-    auto p = this->createPeak(Q, binCount);
+    auto p = this->createPeak(Q, binCount, tracer);
     if (m_edge > 0) {
       if (edgePixel(inst, p->getBankName(), p->getCol(), p->getRow(), m_edge))
         return;
@@ -212,7 +281,8 @@ void FindPeaksMD::addPeak(const V3D &Q, const double binCount) {
  * Creates a Peak object from Q & bin count
  * */
 boost::shared_ptr<DataObjects::Peak>
-FindPeaksMD::createPeak(const Mantid::Kernel::V3D &Q, const double binCount) {
+FindPeaksMD::createPeak(const Mantid::Kernel::V3D &Q, const double binCount,
+                        const Geometry::InstrumentRayTracer &tracer) {
   boost::shared_ptr<DataObjects::Peak> p;
   if (dimType == QLAB) {
     // Build using the Q-lab-frame constructor
@@ -221,14 +291,28 @@ FindPeaksMD::createPeak(const Mantid::Kernel::V3D &Q, const double binCount) {
     p->setGoniometerMatrix(m_goniometer);
   } else if (dimType == QSAMPLE) {
     // Build using the Q-sample-frame constructor
-    p = boost::make_shared<Peak>(inst, Q, m_goniometer);
+    bool calcGoniometer = getProperty("CalculateGoniometerForCW");
+
+    if (calcGoniometer) {
+      // Calculate Q lab from Q sample and wavelength
+      double wavelength = getProperty("Wavelength");
+      Geometry::Goniometer goniometer;
+      goniometer.calcFromQSampleAndWavelength(Q, wavelength);
+      g_log.information() << "Found goniometer rotation to be "
+                          << goniometer.getEulerAngles()[0]
+                          << " degrees for Q sample = " << Q << "\n";
+      p = boost::make_shared<Peak>(inst, Q, goniometer.getR());
+
+    } else {
+      p = boost::make_shared<Peak>(inst, Q, m_goniometer);
+    }
   } else {
     throw std::invalid_argument(
         "Cannot Integrate peaks unless the dimension is QLAB or QSAMPLE");
   }
 
   try { // Look for a detector
-    p->findDetector();
+    p->findDetector(tracer);
   } catch (...) { /* Ignore errors in ray-tracer */
   }
 
@@ -263,30 +347,37 @@ void FindPeaksMD::findPeaks(typename MDEventWorkspace<MDE, nd>::sptr ws) {
   // Make sure all centroids are fresh
   // ws->getBox()->refreshCentroid();
 
-  if (ws->getNumExperimentInfo() == 0)
+  uint16_t nexp = ws->getNumExperimentInfo();
+
+  if (nexp == 0)
     throw std::runtime_error(
         "No instrument was found in the MDEventWorkspace. Cannot find peaks.");
 
   for (uint16_t iexp = 0; iexp < ws->getNumExperimentInfo(); iexp++) {
     ExperimentInfo_sptr ei = ws->getExperimentInfo(iexp);
     this->readExperimentInfo(ei, boost::dynamic_pointer_cast<IMDWorkspace>(ws));
+
+    Geometry::InstrumentRayTracer tracer(inst);
     // Copy the instrument, sample, run to the peaks workspace.
     peakWS->copyExperimentInfoFrom(ei.get());
 
     // Calculate a threshold below which a box is too diffuse to be considered a
     // peak.
-    signal_t thresholdDensity = ws->getBox()->getSignalNormalized() *
-                                DensityThresholdFactor * m_densityScaleFactor;
-    if (!std::isfinite(thresholdDensity)) {
+    signal_t threshold =
+        m_useNumberOfEventsNormalization
+            ? ws->getBox()->getSignalByNEvents() * m_signalThresholdFactor
+            : ws->getBox()->getSignalNormalized() * DensityThresholdFactor;
+    threshold *= m_densityScaleFactor;
+
+    if (!std::isfinite(threshold)) {
       g_log.warning()
           << "Infinite or NaN overall density found. Your input data "
              "may be invalid. Using a 0 threshold instead.\n";
-      thresholdDensity = 0;
+      threshold = 0;
     }
-    g_log.information() << "Threshold signal density: " << thresholdDensity
-                        << '\n';
+    g_log.information() << "Threshold signal density: " << threshold << '\n';
 
-    typedef API::IMDNode *boxPtr;
+    using boxPtr = API::IMDNode *;
     // We will fill this vector with pointers to all the boxes (up to a given
     // depth)
     typename std::vector<API::IMDNode *> boxes;
@@ -296,7 +387,7 @@ void FindPeaksMD::findPeaks(typename MDEventWorkspace<MDE, nd>::sptr ws) {
     ws->getBox()->getBoxes(boxes, 1000, true);
 
     // This pair is the <density, ptr to the box>
-    typedef std::pair<double, API::IMDNode *> dens_box;
+    using dens_box = std::pair<double, API::IMDNode *>;
 
     // Map that will sort the boxes by increasing density. The key = density;
     // value = box *.
@@ -308,10 +399,13 @@ void FindPeaksMD::findPeaks(typename MDEventWorkspace<MDE, nd>::sptr ws) {
     auto it1_end = boxes.end();
     for (; it1 != it1_end; it1++) {
       auto box = *it1;
-      double density = box->getSignalNormalized() * m_densityScaleFactor;
-      // Skip any boxes with too small a signal density.
-      if (density > thresholdDensity)
-        sortedBoxes.insert(dens_box(density, box));
+      double value = m_useNumberOfEventsNormalization
+                         ? box->getSignalByNEvents()
+                         : box->getSignalNormalized();
+      value *= m_densityScaleFactor;
+      // Skip any boxes with too small a signal value.
+      if (value > threshold)
+        sortedBoxes.insert(dens_box(value, box));
     }
 
     // --------------- Find Peak Boxes -----------------------------
@@ -328,7 +422,7 @@ void FindPeaksMD::findPeaks(typename MDEventWorkspace<MDE, nd>::sptr ws) {
     // e.g. from highest density down to lowest density.
     typename std::multimap<double, boxPtr>::reverse_iterator it2;
     auto it2_end = sortedBoxes.rend();
-    for (it2 = sortedBoxes.rbegin(); it2 != it2_end; it2++) {
+    for (it2 = sortedBoxes.rbegin(); it2 != it2_end; ++it2) {
       signal_t density = it2->first;
       boxPtr box = it2->second;
 #ifndef MDBOX_TRACK_CENTROID
@@ -385,6 +479,16 @@ void FindPeaksMD::findPeaks(typename MDEventWorkspace<MDE, nd>::sptr ws) {
 
     // --- Convert the "boxes" to peaks ----
     for (auto box : peakBoxes) {
+      //  If no events from this experimental contribute to the box then skip
+      if (nexp > 1) {
+        MDBox<MDE, nd> *mdbox = dynamic_cast<MDBox<MDE, nd> *>(box);
+        typename std::vector<MDE> &events = mdbox->getEvents();
+        if (std::none_of(events.cbegin(), events.cend(), [&iexp, &nexp](
+                                                             MDE event) {
+              return event.getRunIndex() == iexp || event.getRunIndex() >= nexp;
+            }))
+          continue;
+      }
 // The center of the box = Q in the lab frame
 
 #ifndef MDBOX_TRACK_CENTROID
@@ -404,7 +508,7 @@ void FindPeaksMD::findPeaks(typename MDEventWorkspace<MDE, nd>::sptr ws) {
         binCount = static_cast<double>(box->getNPoints());
 
       try {
-        auto p = this->createPeak(Q, binCount);
+        auto p = this->createPeak(Q, binCount, tracer);
         if (m_addDetectors) {
           auto mdBox = dynamic_cast<MDBoxBase<MDE, nd> *>(box);
           if (!mdBox) {
@@ -459,12 +563,13 @@ void FindPeaksMD::findPeaksHisto(
   for (uint16_t iexp = 0; iexp < ws->getNumExperimentInfo(); iexp++) {
     ExperimentInfo_sptr ei = ws->getExperimentInfo(iexp);
     this->readExperimentInfo(ei, boost::dynamic_pointer_cast<IMDWorkspace>(ws));
+    Geometry::InstrumentRayTracer tracer(inst);
 
     // Copy the instrument, sample, run to the peaks workspace.
     peakWS->copyExperimentInfoFrom(ei.get());
 
     // This pair is the <density, box index>
-    typedef std::pair<double, size_t> dens_box;
+    using dens_box = std::pair<double, size_t>;
 
     // Map that will sort the boxes by increasing density. The key = density;
     // value = box index.
@@ -562,7 +667,7 @@ void FindPeaksMD::findPeaksHisto(
       double binCount = ws->getSignalNormalizedAt(index) * m_densityScaleFactor;
 
       // Create the peak
-      addPeak(Q, binCount);
+      addPeak(Q, binCount, tracer);
 
       // Report progres for each box found.
       prog->report("Adding Peaks");
@@ -577,6 +682,7 @@ void FindPeaksMD::findPeaksHisto(
 /** Execute the algorithm.
  */
 void FindPeaksMD::exec() {
+
   bool AppendPeaks = getProperty("AppendPeaks");
 
   // Output peaks workspace, create if needed
@@ -597,6 +703,11 @@ void FindPeaksMD::exec() {
       static_cast<coord_t>(PeakDistanceThreshold * PeakDistanceThreshold);
 
   DensityThresholdFactor = getProperty("DensityThresholdFactor");
+  m_signalThresholdFactor = getProperty("SignalThresholdFactor");
+
+  std::string strategy = getProperty("PeakFindingStrategy");
+  m_useNumberOfEventsNormalization = strategy == numberOfEventsNormalization;
+
   m_maxPeaks = getProperty("MaxPeaks");
   m_edge = this->getProperty("EdgePixels");
 
@@ -618,9 +729,41 @@ void FindPeaksMD::exec() {
   criteria.push_back(std::pair<std::string, bool>("bincount", false));
   peakWS->sort(criteria);
 
+  for (auto i = 0; i != peakWS->getNumberPeaks(); ++i) {
+    Peak &p = peakWS->getPeak(i);
+    p.setPeakNumber(i + 1);
+  }
   // Save the output
   setProperty("OutputWorkspace", peakWS);
 }
 
+//----------------------------------------------------------------------------------------------
+/** Validate the inputs.
+ */
+std::map<std::string, std::string> FindPeaksMD::validateInputs() {
+  std::map<std::string, std::string> result;
+  // Check for number of event normalzation
+  std::string strategy = getProperty("PeakFindingStrategy");
+
+  const bool useNumberOfEventsNormalization =
+      strategy == numberOfEventsNormalization;
+  IMDWorkspace_sptr inWS = getProperty("InputWorkspace");
+  IMDEventWorkspace_sptr inMDEW =
+      boost::dynamic_pointer_cast<IMDEventWorkspace>(inWS);
+
+  if (useNumberOfEventsNormalization && !inMDEW) {
+    result["PeakFindingStrategy"] = "The NumberOfEventsNormalization selection "
+                                    "can only be used with an MDEventWorkspace "
+                                    "as the input.";
+  }
+
+  double wavelength = getProperty("Wavelength");
+  if (getProperty("CalculateGoniometerForCW") && wavelength == DBL_MAX)
+    result["Wavelength"] =
+        "Must set wavelength when using CalculateGoniometerForCW option";
+
+  return result;
+}
+
+} // namespace MDAlgorithms
 } // namespace Mantid
-} // namespace DataObjects

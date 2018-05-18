@@ -36,6 +36,7 @@ import mantid.simpleapi as msapi
 import input_parsing as iparsing
 import results_output as fitout
 import test_result
+from plotHelper import *
 
 
 def run_all_with_or_without_errors(base_problem_files_dir, use_errors, minimizers,
@@ -100,7 +101,7 @@ def run_all_with_or_without_errors(base_problem_files_dir, use_errors, minimizer
 
 
 def do_fitting_benchmark(nist_group_dir=None, cutest_group_dir=None, neutron_data_group_dirs=None,
-                         minimizers=None, use_errors=True):
+                         muon_data_group_dir=None, minimizers=None, use_errors=True):
     """
     Run a fit minimizer benchmark against groups of fitting problems.
 
@@ -115,6 +116,7 @@ def do_fitting_benchmark(nist_group_dir=None, cutest_group_dir=None, neutron_dat
     @param nist_group_dir :: whether to try to load NIST problems
     @param cutest_group_dir :: whether to try to load CUTEst problems
     @param neutron_data_group_dirs :: base directory where fitting problems are located including NIST+CUTEst
+    @param muon_data_group_dir :: base directory where muon fitting problems are located
     @param minimizers :: list of minimizers to test
     @param use_errors :: whether to use observational errors as weights in the cost function
     """
@@ -133,6 +135,8 @@ def do_fitting_benchmark(nist_group_dir=None, cutest_group_dir=None, neutron_dat
 
     if neutron_data_group_dirs:
         problem_blocks.extend(get_data_groups(neutron_data_group_dirs))
+    if muon_data_group_dir:
+        problem_blocks.extend(get_data_groups(muon_data_group_dir))
 
     prob_results = [do_fitting_benchmark_group(block, minimizers, use_errors=use_errors) for
                     block in problem_blocks]
@@ -163,6 +167,8 @@ def do_fitting_benchmark_group(problem_files, minimizers, use_errors=True):
 
     problems = []
     results_per_problem = []
+    count =0
+    previous_name="none"
     for prob_file in problem_files:
         try:
             # Note the CUTEst problem are assumed to be expressed in NIST format
@@ -173,13 +179,41 @@ def do_fitting_benchmark_group(problem_files, minimizers, use_errors=True):
         print("* Testing fitting for problem definition file {0}".format(prob_file))
         print("* Testing fitting of problem {0}".format(prob.name))
 
-        results_prob = do_fitting_benchmark_one_problem(prob, minimizers, use_errors)
+        results_prob = do_fitting_benchmark_one_problem(prob, minimizers, use_errors,count,previous_name)
         results_per_problem.extend(results_prob)
 
     return problems, results_per_problem
 
 
-def do_fitting_benchmark_one_problem(prob, minimizers, use_errors=True):
+def splitByString(name,min_length,loop=0,splitter=0):
+    """
+    A simple function for splitting via characters in a long string
+    @param name :: input string
+    @param min_length :: minimum length of a linestyle
+    @param loop :: number of time cycled through the split options
+    @param splitter :: index of which split pattern to use
+    @returns :: the split string
+    """
+    tmp = name[min_length:]
+    split_at=[";","+",","]
+    if splitter+1 >len(split_at):
+        if loop>3:
+            print ("failed ",name)
+            return "..."
+        else:
+            return splitByString(name,min_length,loop+1)
+    loc=tmp.find(split_at[splitter])+min_length
+    if loc ==-1+min_length or loc > min_length*2:
+        if len(tmp)>min_length:
+            return splitByString(name,min_length,loop,splitter+1)
+        return name
+    else:
+        tmp = splitByString(name[loc+1:],min_length,loop,splitter)
+        title=name[:loc+1]+"\n"+tmp
+        return title
+
+
+def do_fitting_benchmark_one_problem(prob, minimizers, use_errors=True,count=0,previous_name="none"):
     """
     One problem with potentially several starting points, returns a list (start points) of
     lists (minimizers).
@@ -188,6 +222,7 @@ def do_fitting_benchmark_one_problem(prob, minimizers, use_errors=True):
     @param minimizers :: list of minimizers to evaluate/compare
     @param use_errors :: whether to use observational errors when evaluating accuracy (in the
                          cost function)
+    @param count :: the current count for the number of different start values for a given problem
     """
 
     wks, cost_function = prepare_wks_cost_function(prob, use_errors)
@@ -197,7 +232,8 @@ def do_fitting_benchmark_one_problem(prob, minimizers, use_errors=True):
 
     # Get function definitions for the problem - one for each starting point
     function_defs = get_function_definitions(prob)
-
+    # search for lowest chi2
+    min_sum_err_sq = 1.e20
     # Loop over the different starting points
     for user_func in function_defs:
         results_problem_start = []
@@ -217,12 +253,14 @@ def do_fitting_benchmark_one_problem(prob, minimizers, use_errors=True):
             if fit_wks:
                 sum_err_sq = sum_of_squares(fit_wks.readY(2))
                 # print " output simulated values: {0}".format(fit_wks.readY(1))
+                if sum_err_sq <min_sum_err_sq:
+                    tmp=msapi.ConvertToPointData(fit_wks)
+                    best_fit=data(minimizer_name,tmp.readX(1),tmp.readY(1))
+                    min_sum_err_sq=sum_err_sq
             else:
                 sum_err_sq = float("inf")
                 print(" WARNING: no output fit workspace")
-
             print("   sum sq: {0}".format(sum_err_sq))
-
             result = test_result.FittingTestResult()
             result.problem = prob
             result.fit_status = status
@@ -234,9 +272,62 @@ def do_fitting_benchmark_one_problem(prob, minimizers, use_errors=True):
             result.runtime = t_end - t_start if not np.isnan(chi2) else np.nan
             print("Result object: {0}".format(result))
             results_problem_start.append(result)
-
         results_fit_problem.append(results_problem_start)
+        # make plots
+        fig=plot()
+        best_fit.markers=''
+        best_fit.linestyle='-'
+        best_fit.colour='green'
+        best_fit.order_data()
+        fig.add_data(best_fit)
+        tmp=msapi.ConvertToPointData(wks)
+        xData = tmp.readX(0)
+        yData = tmp.readY(0)
+        eData = tmp.readE(0)
+        raw=data("Data",xData,yData,eData)
+        raw.showError=True
+        raw.linestyle=''
+        fig.add_data(raw)
+        fig.labels['y']="Arbitrary units"
+        fig.labels['x']="Time ($\mu s$)"
+        if prob.name == previous_name:
+            count+=1
+        else:
+            count =1
+            previous_name=prob.name
+        #fig.labels['y']="something "
+        fig.labels['title']=prob.name[:-4]+" "+str(count)
+        fig.title_size=10
+        fit_result= msapi.Fit(user_func, wks, Output='ws_fitting_test',
+                              Minimizer='Levenberg-Marquardt',
+                              CostFunction='Least squares',IgnoreInvalidData=True,
+                              StartX=prob.start_x, EndX=prob.end_x,MaxIterations=0)
+        tmp=msapi.ConvertToPointData(fit_result.OutputWorkspace)
+        xData = tmp.readX(1)
+        yData = tmp.readY(1)
+        startData=data("Start Guess",xData,yData)
+        startData.order_data()
+        startData.colour="blue"
+        startData.markers=''
+        startData.linestyle="-"
+        start_fig=plot()
+        start_fig.add_data(raw)
+        start_fig.add_data(startData)
+        start_fig.labels['x']="Time ($\mu s$)"
+        start_fig.labels['y']="Arbitrary units"
+        title=user_func[27:-1]
+        title=splitByString(title,30)
+        # remove the extension (e.g. .nxs) if there is one
+        run_ID = prob.name
+        k=-1
+        k=run_ID.rfind(".")
+        if k != -1:
+            run_ID=run_ID[:k]
 
+        start_fig.labels['title']=run_ID+" "+str(count)+"\n"+title
+        start_fig.title_size=10
+        fig.make_scatter_plot("Fit for "+run_ID+" "+str(count)+".pdf")
+        start_fig.make_scatter_plot("start for "+run_ID+" "+str(count)+".pdf")
     return results_fit_problem
 
 
@@ -254,24 +345,21 @@ def run_fit(wks, prob, function, minimizer='Levenberg-Marquardt', cost_function=
 
     @returns the fitted parameter values and error estimates for these
     """
-    status = None
-    chi2 = None
+    fit_result = None
     param_tbl = None
-    fit_wks = None
     try:
         # When using 'Least squares' (weighted by errors), ignore nans and zero errors, but don't
         # ignore them when using 'Unweighted least squares' as that would ignore all values!
         ignore_invalid = cost_function == 'Least squares'
-
         # Note the ugly adhoc exception. We need to reconsider these WISH problems:
         if 'WISH17701' in prob.name:
             ignore_invalid = False
 
-        status, chi2, covar_tbl, param_tbl, fit_wks = msapi.Fit(function, wks, Output='ws_fitting_test',
-                                                                Minimizer=minimizer,
-                                                                CostFunction=cost_function,
-                                                                IgnoreInvalidData=ignore_invalid,
-                                                                StartX=prob.start_x, EndX=prob.end_x)
+        fit_result = msapi.Fit(function, wks, Output='ws_fitting_test',
+                               Minimizer=minimizer,
+                               CostFunction=cost_function,
+                               IgnoreInvalidData=ignore_invalid,
+                               StartX=prob.start_x, EndX=prob.end_x)
 
         calc_chi2 = msapi.CalculateChiSquared(Function=function,
                                               InputWorkspace=wks, IgnoreInvalidData=ignore_invalid)
@@ -279,7 +367,7 @@ def run_fit(wks, prob, function, minimizer='Levenberg-Marquardt', cost_function=
 
     except RuntimeError as rerr:
         print("Warning, Fit probably failed. Going on. Error: {0}".format(str(rerr)))
-
+    param_tbl = fit_result.OutputParameters
     if param_tbl:
         params = param_tbl.column(1)[:-1]
         errors = param_tbl.column(2)[:-1]
@@ -287,7 +375,7 @@ def run_fit(wks, prob, function, minimizer='Levenberg-Marquardt', cost_function=
         params = None
         errors = None
 
-    return status, chi2, fit_wks, params, errors
+    return fit_result.OutputStatus, fit_result.OutputChi2overDoF, fit_result.OutputWorkspace, params, errors
 
 
 def prepare_wks_cost_function(prob, use_errors):
@@ -342,7 +430,6 @@ def get_function_definitions(prob):
     else:
         # Equation from a neutron data spec file. Ready to be used
         function_defs.append(prob.equation)
-
     return function_defs
 
 

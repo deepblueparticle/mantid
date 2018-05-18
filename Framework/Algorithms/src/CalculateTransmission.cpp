@@ -1,7 +1,3 @@
-
-//----------------------------------------------------------------------
-// Includes
-//----------------------------------------------------------------------
 #include "MantidAlgorithms/CalculateTransmission.h"
 #include "MantidAPI/CommonBinsValidator.h"
 #include "MantidAPI/FunctionFactory.h"
@@ -22,7 +18,6 @@
 #include <cmath>
 
 #include <boost/algorithm/string/join.hpp>
-#include <boost/foreach.hpp>
 #include <boost/lexical_cast.hpp>
 
 namespace Mantid {
@@ -187,12 +182,14 @@ void CalculateTransmission::exec() {
     beamMonitorIndex = getIndexFromDetectorID(*sampleWS, beamMonitorID);
     logIfNotMonitor(sampleWS, directWS, beamMonitorIndex);
 
-    BOOST_FOREACH (size_t transmissionIndex, transmissionIndices)
-      if (transmissionIndex == beamMonitorIndex)
-        throw std::invalid_argument("The IncidentBeamMonitor UDET (" +
-                                    std::to_string(transmissionIndex) +
-                                    ") matches a UDET given in " +
-                                    transPropName + ".");
+    const auto transmissionIndex =
+        std::find(transmissionIndices.begin(), transmissionIndices.end(),
+                  beamMonitorIndex);
+    if (transmissionIndex != transmissionIndices.end())
+      throw std::invalid_argument("The IncidentBeamMonitor UDET (" +
+                                  std::to_string(*transmissionIndex) +
+                                  ") matches a UDET given in " + transPropName +
+                                  ".");
   }
 
   MatrixWorkspace_sptr sampleInc;
@@ -268,7 +265,7 @@ CalculateTransmission::extractSpectra(API::MatrixWorkspace_sptr ws,
   // means that lexical_cast cannot be used directly as the call is ambiguous
   // so we need to define a function pointer that can resolve the overloaded
   // lexical_cast function
-  typedef std::string (*from_size_t)(const size_t &);
+  using from_size_t = std::string (*)(const size_t &);
 
   std::transform(
       indices.begin(), indices.end(), indexStrings.begin(),

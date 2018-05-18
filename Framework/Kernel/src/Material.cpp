@@ -1,6 +1,3 @@
-//------------------------------------------------------------------------------
-// Includes
-//------------------------------------------------------------------------------
 #include "MantidKernel/Material.h"
 #include "MantidKernel/Atom.h"
 #include "MantidKernel/StringTokenizer.h"
@@ -13,8 +10,8 @@
 namespace Mantid {
 
 namespace Kernel {
-typedef Mantid::Kernel::StringTokenizer tokenizer;
-typedef std::pair<std::string, std::string> str_pair;
+using tokenizer = Mantid::Kernel::StringTokenizer;
+using str_pair = std::pair<std::string, std::string>;
 
 using PhysicalConstants::Atom;
 using PhysicalConstants::getAtom;
@@ -45,7 +42,7 @@ Material::Material()
 * Construct a material object
 * @param name :: The name of the material
 * @param formula :: The chemical formula
-* @param numberDensity :: Density in A^-3
+* @param numberDensity :: Density in atoms / Angstrom^3
 * @param temperature :: The temperature in Kelvin (Default = 300K)
 * @param pressure :: Pressure in kPa (Default: 101.325 kPa)
 */
@@ -62,7 +59,7 @@ Material::Material(const std::string &name, const ChemicalFormula &formula,
 * Construct a material object
 * @param name :: The name of the material
 * @param atom :: The neutron atom to take scattering infrmation from
-* @param numberDensity :: Density in A^-3
+* @param numberDensity :: Density in atoms / Angstrom^3
 * @param temperature :: The temperature in Kelvin (Default = 300K)
 * @param pressure :: Pressure in kPa (Default: 101.325 kPa)
 */
@@ -102,7 +99,7 @@ const Material::ChemicalFormula &Material::chemicalFormula() const {
 
 /**
  * Get the number density
- * @returns The number density of the material in A^-3
+ * @returns The number density of the material in atoms / Angstrom^3
  */
 double Material::numberDensity() const { return m_numberDensity; }
 
@@ -203,7 +200,7 @@ double Material::totalScatterXSection(const double lambda) const {
  * reference
  * wavelength = NeutronAtom::ReferenceLambda angstroms.
  * @param lambda :: The wavelength to evaluate the cross section
- * @returns The value of the absoprtioncross section at
+ * @returns The value of the absoprtion cross section at
  * the given wavelength
  */
 double Material::absorbXSection(const double lambda) const {
@@ -281,6 +278,26 @@ double Material::cohScatterLengthReal(const double lambda) const {
   }
 }
 
+double Material::cohScatterLengthImg(const double lambda) const {
+  UNUSED_ARG(lambda);
+
+  const double weightedTotal =
+      std::accumulate(std::begin(m_chemicalFormula),
+                      std::end(m_chemicalFormula), 0.,
+                      [](double subtotal, const FormulaUnit &right) {
+                        return subtotal +
+                               right.atom->neutron.coh_scatt_length_img *
+                                   right.multiplicity;
+                      }) /
+      m_atomTotal;
+
+  if (!std::isnormal(weightedTotal)) {
+    return 0.;
+  } else {
+    return weightedTotal;
+  }
+}
+
 double Material::incohScatterLengthReal(const double lambda) const {
   UNUSED_ARG(lambda);
 
@@ -290,6 +307,26 @@ double Material::incohScatterLengthReal(const double lambda) const {
                       [](double subtotal, const FormulaUnit &right) {
                         return subtotal +
                                right.atom->neutron.inc_scatt_length_real *
+                                   right.multiplicity;
+                      }) /
+      m_atomTotal;
+
+  if (!std::isnormal(weightedTotal)) {
+    return 0.;
+  } else {
+    return weightedTotal;
+  }
+}
+
+double Material::incohScatterLengthImg(const double lambda) const {
+  UNUSED_ARG(lambda);
+
+  const double weightedTotal =
+      std::accumulate(std::begin(m_chemicalFormula),
+                      std::end(m_chemicalFormula), 0.,
+                      [](double subtotal, const FormulaUnit &right) {
+                        return subtotal +
+                               right.atom->neutron.inc_scatt_length_img *
                                    right.multiplicity;
                       }) /
       m_atomTotal;
@@ -320,65 +357,35 @@ double Material::totalScatterLength(const double lambda) const {
   }
 }
 
-double Material::cohScatterLengthRealSqrd(const double lambda) const {
-  UNUSED_ARG(lambda);
-
-  const double weightedTotal =
-      std::accumulate(
-          std::begin(m_chemicalFormula), std::end(m_chemicalFormula), 0.,
-          [](double subtotal, const FormulaUnit &right) {
-            const double value = right.atom->neutron.coh_scatt_length_real;
-            return subtotal + value * value * right.multiplicity;
-          }) /
-      m_atomTotal;
-
-  if (!std::isnormal(weightedTotal)) {
-    return 0.;
-  } else {
-    return weightedTotal;
-  }
-}
-
-double Material::incohScatterLengthRealSqrd(const double lambda) const {
-  UNUSED_ARG(lambda);
-
-  const double weightedTotal =
-      std::accumulate(
-          std::begin(m_chemicalFormula), std::end(m_chemicalFormula), 0.,
-          [](double subtotal, const FormulaUnit &right) {
-            const double value = right.atom->neutron.inc_scatt_length_real;
-            return subtotal + value * value * right.multiplicity;
-          }) /
-      m_atomTotal;
-
-  if (!std::isnormal(weightedTotal)) {
-    return 0.;
-  } else {
-    return weightedTotal;
-  }
-}
-
 double Material::cohScatterLengthSqrd(const double lambda) const {
-  // cross section has this properly averaged already
-  double crossSection = cohScatterXSection(lambda);
+  const double weightedTotalReal = this->cohScatterLengthReal(lambda);
+  const double weightedTotalImg = this->cohScatterLengthImg();
 
-  // 1 barn = 100 fm
-  return 100. * crossSection * INV_FOUR_PI;
+  if (!std::isnormal(weightedTotalReal)) {
+    return 0.;
+  } else {
+    return (weightedTotalReal * weightedTotalReal) +
+           (weightedTotalImg * weightedTotalImg);
+  }
 }
 
 double Material::incohScatterLengthSqrd(const double lambda) const {
-  // cross section has this properly averaged already
-  double crossSection = incohScatterXSection(lambda);
+  const double weightedTotalReal = this->incohScatterLengthReal(lambda);
+  const double weightedTotalImg = this->incohScatterLengthImg(lambda);
 
-  // 1 barn = 100 fm
-  return 100. * crossSection * INV_FOUR_PI;
+  if (!std::isnormal(weightedTotalReal)) {
+    return 0.;
+  } else {
+    return (weightedTotalReal * weightedTotalReal) +
+           (weightedTotalImg * weightedTotalImg);
+  }
 }
 
 double Material::totalScatterLengthSqrd(const double lambda) const {
   // cross section has this properly averaged already
   double crossSection = totalScatterXSection(lambda);
 
-  // 1 barn = 100 fm
+  // 1 barn = 100 fm^2
   return 100. * crossSection * INV_FOUR_PI;
 }
 
@@ -387,7 +394,7 @@ double Material::totalScatterLengthSqrd(const double lambda) const {
  * @param group :: name of the group to create
  */
 void Material::saveNexus(::NeXus::File *file, const std::string &group) const {
-  file->makeGroup(group, "NXdata", 1);
+  file->makeGroup(group, "NXdata", true);
   file->putAttr("version", 2);
   file->putAttr("name", m_name);
 

@@ -3,7 +3,7 @@
 """ SANSCalculateTransmission algorithm calculates the transmission correction of a SANS workspace."""
 from __future__ import (absolute_import, division, print_function)
 from mantid.kernel import (Direction, StringListValidator, PropertyManagerProperty)
-from mantid.api import (DataProcessorAlgorithm, MatrixWorkspaceProperty, AlgorithmFactory, PropertyMode)
+from mantid.api import (ParallelDataProcessorAlgorithm, MatrixWorkspaceProperty, AlgorithmFactory, PropertyMode)
 from sans.common.constants import EMPTY_NAME
 from sans.common.general_functions import create_unmanaged_algorithm
 from sans.common.enums import (RangeStepType, RebinType, FitType, DataType)
@@ -15,7 +15,7 @@ from sans.algorithm_detail.calculate_transmission_helper import (get_detector_id
                                                                  get_region_of_interest)
 
 
-class SANSCalculateTransmission(DataProcessorAlgorithm):
+class SANSCalculateTransmission(ParallelDataProcessorAlgorithm):
     def category(self):
         return 'SANS\\Adjust'
 
@@ -143,7 +143,7 @@ class SANSCalculateTransmission(DataProcessorAlgorithm):
 
         # Get the fit setting for the correct data type, ie either for the Sample of the Can
         fit_type = calculate_transmission_state.fit[DataType.to_string(data_type)].fit_type
-        if fit_type is FitType.Log:
+        if fit_type is FitType.Logarithmic:
             fit_string = "Log"
         elif fit_type is FitType.Polynomial:
             fit_string = "Polynomial"

@@ -12,6 +12,8 @@
 using namespace Mantid;
 using namespace Mantid::Kernel;
 using namespace Mantid::API;
+using Types::Core::DateAndTime;
+using Types::Core::time_duration;
 
 using namespace std;
 
@@ -320,7 +322,7 @@ void GenerateEventsFilter::processInputTime() {
     }
     int64_t t0_ns = runstarttime.totalNanoseconds() +
                     static_cast<int64_t>(inpt0 * m_timeUnitConvertFactorToNS);
-    m_startTime = Kernel::DateAndTime(t0_ns);
+    m_startTime = Types::Core::DateAndTime(t0_ns);
   }
 
   // Set up run stop time
@@ -335,7 +337,7 @@ void GenerateEventsFilter::processInputTime() {
     double inptf = std::stod(s_inptf.c_str());
     int64_t tf_ns = runstarttime.totalNanoseconds() +
                     static_cast<int64_t>(inptf * m_timeUnitConvertFactorToNS);
-    m_stopTime = Kernel::DateAndTime(tf_ns);
+    m_stopTime = Types::Core::DateAndTime(tf_ns);
   }
 
   // Check start/stop time
@@ -386,8 +388,7 @@ void GenerateEventsFilter::setFilterByTimeOnly() {
 
     // Default and thus just one interval
     std::stringstream ss;
-    ss << "Time Interval From " << m_startTime << " to " << m_stopTime;
-
+    ss << "Time.Interval.From." << m_startTime << ".To." << m_stopTime;
     addNewTimeFilterSplitter(m_startTime, m_stopTime, wsindex, ss.str());
   } else if (vec_timeintervals.size() == 1) {
     double timeinterval = vec_timeintervals[0];
@@ -406,10 +407,10 @@ void GenerateEventsFilter::setFilterByTimeOnly() {
         nexttime_ns = m_stopTime.totalNanoseconds();
 
       // Create splitter and information
-      Kernel::DateAndTime t0(curtime_ns);
-      Kernel::DateAndTime tf(nexttime_ns);
+      Types::Core::DateAndTime t0(curtime_ns);
+      Types::Core::DateAndTime tf(nexttime_ns);
       std::stringstream ss;
-      ss << "Time Interval From " << t0 << " to " << tf;
+      ss << "Time.Interval.From." << t0 << ".to." << tf;
 
       addNewTimeFilterSplitter(t0, tf, wsindex, ss.str());
 
@@ -459,10 +460,10 @@ void GenerateEventsFilter::setFilterByTimeOnly() {
         }
 
         // Create splitter and information
-        Kernel::DateAndTime t0(curtime_ns);
-        Kernel::DateAndTime tf(nexttime_ns);
+        Types::Core::DateAndTime t0(curtime_ns);
+        Types::Core::DateAndTime tf(nexttime_ns);
         std::stringstream ss;
-        ss << "Time Interval From " << t0 << " to " << tf;
+        ss << "Time.Interval.From." << t0 << ".to." << tf;
 
         addNewTimeFilterSplitter(t0, tf, wsindex, ss.str());
 
@@ -547,10 +548,7 @@ void GenerateEventsFilter::setFilterByLogValue(std::string logname) {
 
   // Log boundary
   string logboundary = getProperty("LogBoundary");
-  if (logboundary.compare("Centre"))
-    m_logAtCentre = true;
-  else
-    m_logAtCentre = false;
+  m_logAtCentre = bool(logboundary == "Centre");
 
   m_logTimeTolerance = getProperty("TimeTolerance");
 
@@ -661,14 +659,14 @@ void GenerateEventsFilter::processSingleValueFilter(double minvalue,
 
   API::TableRow row = m_filterInfoWS->appendRow();
   std::stringstream ss;
-  ss << "Log " << m_dblLog->name() << " From " << minvalue << " To " << maxvalue
-     << "  Value-change-direction ";
+  ss << "Log." << m_dblLog->name() << ".From." << minvalue << ".To." << maxvalue
+     << ".Value-change-direction:";
   if (filterincrease && filterdecrease) {
-    ss << " both ";
+    ss << ".both ";
   } else if (filterincrease) {
-    ss << " increase";
+    ss << ".increase";
   } else {
-    ss << " decrease";
+    ss << ".decrease";
   }
   row << 0 << ss.str();
 }
@@ -718,14 +716,14 @@ void GenerateEventsFilter::processMultipleValueFilters(double minvalue,
 
     // Workgroup information
     std::stringstream ss;
-    ss << "Log " << m_dblLog->name() << " From " << lowbound << " To "
-       << upbound << "  Value-change-direction ";
+    ss << "Log." << m_dblLog->name() << ".From." << lowbound << ".To."
+       << upbound << ".Value-change-direction:";
     if (filterincrease && filterdecrease) {
-      ss << " both ";
+      ss << "both";
     } else if (filterincrease) {
-      ss << " increase";
+      ss << "increase";
     } else {
-      ss << " decrease";
+      ss << "decrease";
     };
     API::TableRow newrow = m_filterInfoWS->appendRow();
     newrow << wsindex << ss.str();
@@ -810,7 +808,7 @@ void GenerateEventsFilter::processMultipleValueFilters(double minvalue,
 void GenerateEventsFilter::makeFilterBySingleValue(
     double min, double max, double TimeTolerance, bool centre,
     bool filterIncrease, bool filterDecrease, DateAndTime startTime,
-    Kernel::DateAndTime stopTime, int wsindex) {
+    Types::Core::DateAndTime stopTime, int wsindex) {
   // Do nothing if the log is empty.
   if (m_dblLog->size() == 0) {
     g_log.warning() << "There is no entry in this property " << this->name()
@@ -825,15 +823,12 @@ void GenerateEventsFilter::makeFilterBySingleValue(
   // Initialize control parameters
   bool lastGood = false;
   bool isGood = false;
-  ;
   time_duration tol = DateAndTime::durationFromSeconds(TimeTolerance);
   int numgood = 0;
   DateAndTime lastTime, currT;
   DateAndTime start, stop;
 
   size_t progslot = 0;
-  string info;
-
   for (int i = 0; i < m_dblLog->size(); i++) {
     lastTime = currT;
     // The new entry
@@ -862,7 +857,8 @@ void GenerateEventsFilter::makeFilterBySingleValue(
           stop = currT;
         }
 
-        addNewTimeFilterSplitter(start, stop, wsindex, info);
+        std::string empty("");
+        addNewTimeFilterSplitter(start, stop, wsindex, empty);
 
         // Reset the number of good ones, for next time
         numgood = 0;
@@ -887,9 +883,12 @@ void GenerateEventsFilter::makeFilterBySingleValue(
       stop = currT - tol;
     else
       stop = currT;
-    addNewTimeFilterSplitter(start, stop, wsindex, info);
-    numgood = 0;
+
+    std::string empty("");
+    addNewTimeFilterSplitter(start, stop, wsindex, empty);
   }
+
+  return;
 }
 
 //----------------------------------------------------------------------------------------------
@@ -902,10 +901,11 @@ void GenerateEventsFilter::makeFilterBySingleValue(
   *              with the old direction)
   */
 bool GenerateEventsFilter::identifyLogEntry(
-    const int &index, const Kernel::DateAndTime &currT, const bool &lastgood,
-    const double &minvalue, const double &maxvalue,
-    const Kernel::DateAndTime &startT, const Kernel::DateAndTime &stopT,
-    const bool &filterIncrease, const bool &filterDecrease) {
+    const int &index, const Types::Core::DateAndTime &currT,
+    const bool &lastgood, const double &minvalue, const double &maxvalue,
+    const Types::Core::DateAndTime &startT,
+    const Types::Core::DateAndTime &stopT, const bool &filterIncrease,
+    const bool &filterDecrease) {
   double val = m_dblLog->nthValue(index);
 
   // Identify by time and value
@@ -1167,7 +1167,7 @@ void GenerateEventsFilter::makeMultipleFiltersByValuesParallel(
 /** Make filters by multiple log values of partial log
   */
 void GenerateEventsFilter::makeMultipleFiltersByValuesPartialLog(
-    int istart, int iend, std::vector<Kernel::DateAndTime> &vecSplitTime,
+    int istart, int iend, std::vector<Types::Core::DateAndTime> &vecSplitTime,
     std::vector<int> &vecSplitGroup, map<size_t, int> indexwsindexmap,
     const vector<double> &logvalueranges, time_duration tol,
     bool filterIncrease, bool filterDecrease, DateAndTime startTime,
@@ -1181,7 +1181,7 @@ void GenerateEventsFilter::makeMultipleFiltersByValuesPartialLog(
   int64_t tol_ns = tol.total_nanoseconds();
 
   // Define loop control parameters
-  const Kernel::DateAndTime ZeroTime(0);
+  const Types::Core::DateAndTime ZeroTime(0);
   int lastindex = -1;
   int currindex = -1;
   DateAndTime lastTime;
@@ -1540,18 +1540,18 @@ void GenerateEventsFilter::processIntegerValueFilter(int minvalue, int maxvalue,
     while (logvalue <= maxvalue) {
       stringstream message;
       if (logvalue + delta - 1 > logvalue)
-        message << m_intLog->name() << " = [" << logvalue << ", "
+        message << m_intLog->name() << "=[" << logvalue << ","
                 << logvalue + delta - 1 << "]";
       else
-        message << m_intLog->name() << " = " << logvalue;
+        message << m_intLog->name() << "=" << logvalue;
 
-      message << ". Value change direction: ";
+      message << ".Value change direction:";
       if (filterIncrease && filterDecrease)
-        message << "Both.";
+        message << "Both";
       else if (filterIncrease)
-        message << "Increasing. ";
+        message << "Increasing";
       else if (filterDecrease)
-        message << "Decreasing. ";
+        message << "Decreasing";
 
       TableRow newrow = m_filterInfoWS->appendRow();
       newrow << wsindex << message.str();
@@ -1652,8 +1652,8 @@ int GenerateEventsFilter::determineChangingDirection(int startindex) {
 /** Add a new splitter to vector of splitters.  It is used by FilterByTime only.
   */
 void GenerateEventsFilter::addNewTimeFilterSplitter(
-    Kernel::DateAndTime starttime, Kernel::DateAndTime stoptime, int wsindex,
-    string info) {
+    Types::Core::DateAndTime starttime, Types::Core::DateAndTime stoptime,
+    int wsindex, string info) {
   if (m_forFastLog) {
     // For MatrixWorkspace splitter
     // Start of splitter
@@ -1694,9 +1694,10 @@ void GenerateEventsFilter::addNewTimeFilterSplitter(
   * This method will be called intensively.
   */
 DateAndTime GenerateEventsFilter::makeSplitterInVector(
-    std::vector<Kernel::DateAndTime> &vecSplitTime,
-    std::vector<int> &vecGroupIndex, Kernel::DateAndTime start,
-    Kernel::DateAndTime stop, int group, int64_t tol_ns, DateAndTime lasttime) {
+    std::vector<Types::Core::DateAndTime> &vecSplitTime,
+    std::vector<int> &vecGroupIndex, Types::Core::DateAndTime start,
+    Types::Core::DateAndTime stop, int group, int64_t tol_ns,
+    DateAndTime lasttime) {
   DateAndTime starttime(start.totalNanoseconds() - tol_ns);
   DateAndTime stoptime(stop.totalNanoseconds() - tol_ns);
   // DateAndTime starttime = start-tolerance;
@@ -1857,7 +1858,7 @@ DateAndTime GenerateEventsFilter::findRunEnd() {
     }
 
     if (protonchargelog->size() > 1) {
-      Kernel::DateAndTime tmpendtime = protonchargelog->lastTime();
+      Types::Core::DateAndTime tmpendtime = protonchargelog->lastTime();
       extended_ns = protonchargelog->nthTime(1).totalNanoseconds() -
                     protonchargelog->nthTime(0).totalNanoseconds();
       if (tmpendtime > runendtime) {

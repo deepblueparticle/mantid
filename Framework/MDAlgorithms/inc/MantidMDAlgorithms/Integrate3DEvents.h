@@ -67,16 +67,18 @@ struct IntegrationParameters {
                  <http://doxygen.mantidproject.org>
  */
 
-typedef std::unordered_map<
-    int64_t, std::vector<std::pair<double, Mantid::Kernel::V3D>>> EventListMap;
-typedef std::unordered_map<int64_t, Mantid::Kernel::V3D> PeakQMap;
+using EventListMap =
+    std::unordered_map<int64_t,
+                       std::vector<std::pair<double, Mantid::Kernel::V3D>>>;
+using PeakQMap = std::unordered_map<int64_t, Mantid::Kernel::V3D>;
 
 class DLLExport Integrate3DEvents {
 public:
   /// Construct object to store events around peaks and integrate peaks
   Integrate3DEvents(
       std::vector<std::pair<double, Mantid::Kernel::V3D>> const &peak_q_list,
-      Kernel::DblMatrix const &UBinv, double radius);
+      Kernel::DblMatrix const &UBinv, double radius,
+      const bool useOnePercentBackgroundCorrection = true);
 
   /// Add event Q's to lists of events near peaks
   void
@@ -108,7 +110,7 @@ public:
 
 private:
   /// Get a list of events for a given Q
-  boost::optional<const std::vector<std::pair<double, Mantid::Kernel::V3D>> &>
+  const std::vector<std::pair<double, Mantid::Kernel::V3D>> *
   getEvents(const Mantid::Kernel::V3D &peak_q);
 
   bool correctForDetectorEdges(std::tuple<double, double, double> &radii,
@@ -128,7 +130,8 @@ private:
   static double numInEllipsoidBkg(
       std::vector<std::pair<double, Mantid::Kernel::V3D>> const &events,
       std::vector<Mantid::Kernel::V3D> const &directions,
-      std::vector<double> const &sizes, std::vector<double> const &sizesIn);
+      std::vector<double> const &sizes, std::vector<double> const &sizesIn,
+      const bool useOnePercentBackgroundCorrection);
 
   /// Calculate the 3x3 covariance matrix of a list of Q-vectors at 0,0,0
   static void makeCovarianceMatrix(
@@ -179,6 +182,8 @@ private:
   EventListMap m_event_lists; // hashtable with lists of events for each peak
   Kernel::DblMatrix m_UBinv;  // matrix mapping from Q to h,k,l
   double m_radius;            // size of sphere to use for events around a peak
+  const bool m_useOnePercentBackgroundCorrection =
+      true; // if one perecent culling of the background should be performed.
 };
 
 } // namespace MDAlgorithms

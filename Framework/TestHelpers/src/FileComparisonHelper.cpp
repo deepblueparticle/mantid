@@ -12,15 +12,15 @@ using streamCharIter = std::istreambuf_iterator<char>;
 
 // Returns if the difference was due to EOL and fixes the position of the
 // stream if it was due to EOL
-bool isEolDifference(streamCharIter streamOne, streamCharIter streamTwo) {
+bool isEolDifference(streamCharIter &streamOne, streamCharIter &streamTwo) {
 
   // Check which is the Windows file stream (CR in CRLF)
   // and advance it by a character so we are back to LF on both
   if (*streamOne == '\r' && *streamTwo == '\n') {
 
-    streamOne++;
+    ++streamOne;
   } else if (*streamOne == '\n' && *streamTwo == '\r') {
-    streamTwo++;
+    ++streamTwo;
   } else {
     // Was not a different EOL so indicate false to that
     return false;
@@ -59,7 +59,7 @@ void logDifferenceError(char refChar, char testChar, size_t numNewLines,
   ((outError += "\nTest output:\n") += seenChars) += testChar;
 
   Mantid::Kernel::Logger g_log("FileComparisonHelper");
-  g_log.error(std::move(outError));
+  g_log.error(outError);
 }
 
 } // End of anonymous namespace
@@ -112,7 +112,7 @@ bool areIteratorsEqual(streamCharIter refStream, streamCharIter testStream,
     Mantid::Kernel::Logger g_log("FileComparisonHelper");
     g_log.error("Length of both files were not identical");
     areStreamsEqual = false;
-  } else if (numNewLines == 0 && seenChars.size() == 0) {
+  } else if (numNewLines == 0 && seenChars.empty()) {
     Mantid::Kernel::Logger g_log("FileComparisonHelper");
     g_log.error("No characters checked in FileComparisonHelper");
     areStreamsEqual = false;
@@ -190,7 +190,7 @@ bool isEqualToReferenceFile(const std::string &referenceFileName,
   const std::string referenceFilePath =
       Mantid::API::FileFinder::Instance().getFullPath(referenceFileName);
 
-  if (referenceFilePath == "") {
+  if (referenceFilePath.empty()) {
     throw std::invalid_argument("No reference file with the name: " +
                                 referenceFileName +
                                 " could be found by FileComparisonHelper");

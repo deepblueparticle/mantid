@@ -13,6 +13,7 @@ class V3D;
 
 namespace Geometry {
 // Forward declarations
+class CSGObject;
 class IComponent;
 class ParameterMap;
 
@@ -52,17 +53,6 @@ enum TransformType {
   Relative = 1  ///< The transformation given is relative to the original value
 };
 
-/// Move a component
-MANTID_GEOMETRY_DLL void moveComponent(const IComponent &comp,
-                                       ParameterMap &pmap,
-                                       const Kernel::V3D &pos,
-                                       const TransformType positionType);
-/// Rotate a component
-MANTID_GEOMETRY_DLL void rotateComponent(const IComponent &comp,
-                                         ParameterMap &pmap,
-                                         const Kernel::Quat &rot,
-                                         const TransformType rotType);
-
 MANTID_GEOMETRY_DLL Geometry::Instrument_sptr
 createMinimalInstrument(const Mantid::Kernel::V3D &sourcePos,
                         const Mantid::Kernel::V3D &samplePos,
@@ -73,7 +63,7 @@ createVirtualInstrument(Kernel::V3D sourcePos, Kernel::V3D samplePos,
                         const std::vector<Kernel::V3D> &vecdetpos,
                         const std::vector<detid_t> &vecdetid);
 
-MANTID_GEOMETRY_DLL boost::shared_ptr<Object>
+MANTID_GEOMETRY_DLL boost::shared_ptr<Geometry::CSGObject>
 createSphere(double radius, const Kernel::V3D &centre, const std::string &id);
 
 MANTID_GEOMETRY_DLL std::string

@@ -27,6 +27,9 @@ class TOFTOFMergeRuns(PythonAlgorithm):
         """
         return "Workflow\\MLZ\\TOFTOF;Transforms\\Splitting"
 
+    def seeAlso(self):
+        return [ "TOFTOFCropWorkspace","CorrectTOF" ]
+
     def name(self):
         """ Return summary
         """
@@ -200,6 +203,7 @@ class TOFTOFMergeRuns(PythonAlgorithm):
                 raise RuntimeError("Timings don't match")
             else:
                 return True
+
 
 # Register algorithm with Mantid.
 AlgorithmFactory.subscribe(TOFTOFMergeRuns)

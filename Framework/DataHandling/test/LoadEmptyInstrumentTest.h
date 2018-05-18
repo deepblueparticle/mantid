@@ -4,12 +4,13 @@
 #include <cxxtest/TestSuite.h>
 
 #include "MantidAPI/AnalysisDataService.h"
-#include "MantidAPI/DetectorInfo.h"
+#include "MantidGeometry/Instrument/DetectorInfo.h"
 #include "MantidAPI/SpectrumInfo.h"
 #include "MantidDataHandling/LoadEmptyInstrument.h"
 #include "MantidDataObjects/EventWorkspace.h"
 #include "MantidGeometry/Instrument.h"
 #include "MantidGeometry/Instrument/Component.h"
+#include "MantidGeometry/Instrument/ComponentInfo.h"
 #include "MantidGeometry/Instrument/FitParameter.h"
 #include "MantidKernel/Exception.h"
 #include "MantidTestHelpers/ScopedFileHelper.h"
@@ -155,10 +156,12 @@ public:
     const auto &paramMap = ws->constInstrumentParameters();
 
     // check that parameter have been read into the instrument parameter map
-    std::vector<V3D> ret1 = paramMap.getV3D("monitors", "pos");
-    TS_ASSERT_DELTA(ret1[0].X(), 10.0, 0.0001);
-    TS_ASSERT_DELTA(ret1[0].Y(), 0.0, 0.0001);
-    TS_ASSERT_DELTA(ret1[0].Z(), 0.0, 0.0001);
+    const auto &componentInfo = ws->componentInfo();
+    const auto monitors = ws->getInstrument()->getComponentByName("monitors");
+    const auto monitor = componentInfo.indexOf(monitors->getComponentID());
+    TS_ASSERT_DELTA(componentInfo.position(monitor).X(), 10.0, 0.0001);
+    TS_ASSERT_DELTA(componentInfo.position(monitor).Y(), 0.0, 0.0001);
+    TS_ASSERT_DELTA(componentInfo.position(monitor).Z(), 0.0, 0.0001);
 
     // get detector corresponding to workspace index 0
     const auto &spectrumInfo = ws->spectrumInfo();
@@ -177,7 +180,7 @@ public:
     TS_ASSERT_DELTA(param->value<double>(), 32.0, 0.0001);
 
     param = paramMap.get(&det, "boevs");
-    TS_ASSERT(param == NULL);
+    TS_ASSERT(param == nullptr);
 
     param = paramMap.getRecursive(&det, "boevs", "double");
     TS_ASSERT_DELTA(param->value<double>(), 8.0, 0.0001);
@@ -777,7 +780,7 @@ public:
     // And finally demonstrate that the get() method does not perform recursive
     // look-up
     param = paramMap.get(&det1, "tube_pressure2");
-    TS_ASSERT(param == NULL);
+    TS_ASSERT(param == nullptr);
 
     AnalysisDataService::Instance().remove(wsName);
   }

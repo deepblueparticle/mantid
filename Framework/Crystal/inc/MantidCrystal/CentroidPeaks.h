@@ -27,6 +27,9 @@ public:
 
   /// Algorithm's version for identification
   int version() const override { return 1; };
+  const std::vector<std::string> seeAlso() const override {
+    return {"CentroidPeaksMD", "PeakIntegration"};
+  }
   /// Algorithm's category for identification
   const std::string category() const override { return "Crystal\\Peaks"; }
 
@@ -38,6 +41,8 @@ private:
   void integrate();
   void integrateEvent();
   int findPixelID(std::string bankName, int col, int row);
+  void removeEdgePeaks(Mantid::DataObjects::PeaksWorkspace &peakWS);
+  void sizeBanks(const std::string &bankName, int &nCols, int &nRows);
   Geometry::Instrument_const_sptr inst;
 
   /// Input 2D Workspace

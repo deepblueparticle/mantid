@@ -40,6 +40,9 @@ class RefinePowderDiffProfileSeq(PythonAlgorithm):
         """
         return "Diffraction\\Fitting"
 
+    def seeAlso(self):
+        return [ "RefinePowderInstrumentParameters" ]
+
     def name(self):
         """ Algorithm name
         """
@@ -929,6 +932,7 @@ class RefineProfileParameters(object):
         # ENDIF (step)
 
         return
+
 
 # Register algorithm with Mantid
 AlgorithmFactory.subscribe(RefinePowderDiffProfileSeq)

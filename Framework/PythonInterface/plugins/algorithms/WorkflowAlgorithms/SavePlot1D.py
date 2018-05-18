@@ -24,6 +24,9 @@ class SavePlot1D(mantid.api.PythonAlgorithm):
         """
         return "DataHandling\\Plots"
 
+    def seeAlso(self):
+        return [ "SavePlot1DAsJson","StringToPng" ]
+
     def name(self):
         """ Algorithm name
         """
@@ -256,5 +259,6 @@ class SavePlot1D(mantid.api.PythonAlgorithm):
 
         if 1 < spectra <= 10:
             ax.legend()
+
 
 mantid.api.AlgorithmFactory.subscribe(SavePlot1D)

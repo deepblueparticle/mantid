@@ -1,18 +1,20 @@
 #include "MantidDataHandling/PDLoadCharacterizations.h"
 #include "MantidAPI/FileProperty.h"
-#include "MantidAPI/MultipleFileProperty.h"
 #include "MantidAPI/ITableWorkspace.h"
+#include "MantidAPI/MultipleFileProperty.h"
 #include "MantidAPI/TableRow.h"
 #include "MantidAPI/WorkspaceFactory.h"
 #include "MantidKernel/ArrayProperty.h"
 #include "MantidKernel/Property.h"
-#include "MantidKernel/Strings.h"
 #include "MantidKernel/StringTokenizer.h"
+#include "MantidKernel/Strings.h"
+#include <Poco/File.h>
+#include <Poco/Path.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/regex.hpp>
 #include <fstream>
-#include <set>
 #include <iostream>
+#include <set>
 
 using namespace Mantid::API;
 using namespace Mantid::Kernel;
@@ -55,7 +57,7 @@ extra_columns(const std::vector<std::string> &filenames) {
   std::set<std::string> columnSet;
 
   // parse the version1 file
-  std::ifstream file(filenames[F_INDEX_V1].c_str());
+  std::ifstream file(filenames[F_INDEX_V1].c_str(), std::ios_base::binary);
   if (!file) {
     throw Exception::FileError("Unable to open file", filenames[F_INDEX_V1]);
   }
@@ -182,19 +184,19 @@ void PDLoadCharacterizations::exec() {
 }
 
 int getVersion(const std::string &filename) {
-  std::ifstream file(filename.c_str());
-  if (!file) {
+  std::ifstream file(filename.c_str(), std::ios_base::binary);
+  if (!file.is_open()) {
     throw Exception::FileError("Unable to open file", filename);
   }
   // first line must be version string
   std::string line = Strings::getLine(file);
+  file.close(); // cleanup
 
   boost::smatch result;
   if (boost::regex_search(line, result, VERSION_REG_EXP) &&
       result.size() == 2) {
     return boost::lexical_cast<int>(result[1]);
   }
-  file.close();
 
   // otherwise it is a version=0
   return 0;
@@ -244,6 +246,19 @@ std::vector<std::string> PDLoadCharacterizations::getFilenames() {
   if (!iniFilename.empty()) {
     filenames[F_INDEX_EXPINI] = iniFilename;
   }
+
+  // check that things exist
+  for (const auto &filename : filenames) {
+    if (filename.empty())
+      continue;
+
+    Poco::File file(filename);
+    if (!file.exists())
+      throw Exception::FileError("File does not exist", filename);
+    Poco::Path path(filename);
+    if (!path.isFile())
+      throw Exception::FileError("File is not a regular file", filename);
+  }
   return filenames;
 }
 
@@ -256,12 +271,19 @@ void PDLoadCharacterizations::readFocusInfo(std::ifstream &file) {
   // end early if already at the end of the file
   if (file.eof())
     return;
+  // look at the first line available now
+  // start of the scan indicator means there are no focused positions
+  const auto peek = Strings::peekLine(file).substr(0, 2);
+  if (peek == "#S" || peek == "#L")
+    return;
 
   std::vector<int32_t> specIds;
   std::vector<double> l2;
   std::vector<double> polar;
+  std::vector<double> azi;
 
   // parse the file
+  // Strings::getLine skips blank lines and lines that start with #
   for (std::string line = Strings::getLine(file); !file.eof();
        Strings::getLine(file, line)) {
     line = Strings::strip(line);
@@ -283,14 +305,19 @@ void PDLoadCharacterizations::readFocusInfo(std::ifstream &file) {
       specIds.push_back(boost::lexical_cast<int32_t>(splitted[0]));
       l2.push_back(boost::lexical_cast<double>(splitted[1]));
       polar.push_back(boost::lexical_cast<double>(splitted[2]));
+      if (splitted.size() >= 4 &&
+          (!splitted[3].empty())) { // azimuthal was specified
+        azi.push_back(boost::lexical_cast<double>(splitted[3]));
+      } else { // just set it to zero
+        azi.push_back(0.);
+      }
     }
   }
-  if (specIds.size() != l2.size() || specIds.size() != polar.size())
+  // confirm that everything is the same length
+  if (specIds.size() != l2.size() || specIds.size() != polar.size() ||
+      specIds.size() != azi.size())
     throw std::runtime_error(
         "Found different number of spectra, L2 and polar angles");
-
-  // azimuthal angles are all zero
-  std::vector<double> azi(polar.size(), 0.);
 
   // set the values
   this->setProperty("SpectrumIDs", specIds);
@@ -322,7 +349,6 @@ void PDLoadCharacterizations::readCharInfo(std::ifstream &file,
       continue;
     if (line.substr(0, 1) == "#")
       continue;
-
     // parse the line
     std::vector<std::string> splitted;
     boost::split(splitted, line, boost::is_any_of("\t "),
@@ -361,9 +387,9 @@ void PDLoadCharacterizations::readVersion0(const std::string &filename,
   if (filename.empty())
     return;
 
-  std::ifstream file(filename.c_str());
-  if (!file) {
-    throw Exception::FileError("Unable to open file", filename);
+  std::ifstream file(filename.c_str(), std::ios_base::binary);
+  if (!file.is_open()) {
+    throw Exception::FileError("Unable to open version 0 file", filename);
   }
 
   // read the first line and decide what to do
@@ -433,9 +459,9 @@ void PDLoadCharacterizations::readVersion1(const std::string &filename,
     return;
 
   g_log.information() << "Opening \"" << filename << "\" as a version 1 file\n";
-  std::ifstream file(filename.c_str());
-  if (!file) {
-    throw Exception::FileError("Unable to open file", filename);
+  std::ifstream file(filename.c_str(), std::ios_base::binary);
+  if (!file.is_open()) {
+    throw Exception::FileError("Unable to open version 1 file", filename);
   }
 
   // first line must be version string
@@ -525,14 +551,13 @@ void PDLoadCharacterizations::readExpIni(const std::string &filename,
   if (filename.empty())
     return;
 
-  std::cout << "readExpIni(" << filename << ")" << std::endl;
   if (wksp->rowCount() == 0)
     throw std::runtime_error("Characterizations file does not have any "
                              "characterizations information");
 
-  std::ifstream file(filename.c_str());
-  if (!file) {
-    throw Exception::FileError("Unable to open file", filename);
+  std::ifstream file(filename.c_str(), std::ios_base::binary);
+  if (!file.is_open()) {
+    throw Exception::FileError("Unable to open exp.ini file", filename);
   }
 
   // parse the file

@@ -1,20 +1,18 @@
 #ifndef MANTID_ALGORITHMS_FINDPEAKS_H_
 #define MANTID_ALGORITHMS_FINDPEAKS_H_
 
-//----------------------------------------------------------------------
-// Includes
-//----------------------------------------------------------------------
-#include "MantidAPI/Algorithm.h"
+#include "MantidAPI/ParallelAlgorithm.h"
 #include "MantidKernel/System.h"
-// #include "MantidAPI/IFunction.h"
 #include "MantidAPI/IBackgroundFunction.h"
 #include "MantidAPI/IPeakFunction.h"
 #include "MantidDataObjects/TableWorkspace.h"
 #include "MantidKernel/cow_ptr.h"
+#include "MantidIndexing/SpectrumIndexSet.h"
 
 namespace Mantid {
 
 namespace HistogramData {
+class Histogram;
 class HistogramX;
 class HistogramY;
 }
@@ -65,7 +63,7 @@ namespace Algorithms {
     Code Documentation is available at: <http://doxygen.mantidproject.org>
 */
 
-class DLLExport FindPeaks : public API::Algorithm {
+class DLLExport FindPeaks : public API::ParallelAlgorithm {
 public:
   /// Constructor
   FindPeaks();
@@ -80,6 +78,9 @@ public:
 
   /// Algorithm's version
   int version() const override { return (1); }
+  const std::vector<std::string> seeAlso() const override {
+    return {"MatchPeaks", "FindPeaksMD", "GeneratePeaks"};
+  }
   /// Algorithm's category for identification
   const std::string category() const override {
     return "Optimization\\PeakFinding";
@@ -102,12 +103,14 @@ private:
                                     const std::vector<double> &fitwindows);
 
   /// Methods searving for findPeaksUsingMariscotti()
-  API::MatrixWorkspace_sptr
+  std::vector<HistogramData::Histogram>
   calculateSecondDifference(const API::MatrixWorkspace_const_sptr &input);
-  void smoothData(API::MatrixWorkspace_sptr &WS, const int &w);
-  void calculateStandardDeviation(const API::MatrixWorkspace_const_sptr &input,
-                                  const API::MatrixWorkspace_sptr &smoothed,
-                                  const int &w);
+  void smoothData(std::vector<HistogramData::Histogram> &histograms,
+                  const int w, const int g_z);
+  void
+  calculateStandardDeviation(const API::MatrixWorkspace_const_sptr &input,
+                             std::vector<HistogramData::Histogram> &smoothed,
+                             const int &w);
   long long computePhi(const int &w) const;
 
   /// Fit peak confined in a given window (x-min, x-max)
@@ -204,10 +207,9 @@ private:
   std::unique_ptr<API::Progress> m_progress = nullptr;
 
   // Properties saved in the algo.
-  API::MatrixWorkspace_sptr m_dataWS; ///<workspace to check for peaks
-  int m_inputPeakFWHM;                ///<holder for the requested peak FWHM
-  int m_wsIndex;                      ///<list of workspace indicies to check
-  bool singleSpectrum;   ///<flag for if only a single spectrum is present
+  API::MatrixWorkspace_sptr m_dataWS;    ///<workspace to check for peaks
+  int m_inputPeakFWHM;                   ///<holder for the requested peak FWHM
+  Indexing::SpectrumIndexSet m_indexSet; ///<list of workspace indicies to check
   bool m_highBackground; ///<flag for find relatively weak peak in high
   /// background
   bool m_rawPeaksTable; ///<flag for whether the output is the raw peak

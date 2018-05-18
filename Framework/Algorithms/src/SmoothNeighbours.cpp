@@ -1,5 +1,5 @@
 #include "MantidAlgorithms/SmoothNeighbours.h"
-#include "MantidAPI/DetectorInfo.h"
+#include "MantidGeometry/Instrument/DetectorInfo.h"
 #include "MantidAPI/InstrumentValidator.h"
 #include "MantidAPI/SpectrumInfo.h"
 #include "MantidAPI/WorkspaceFactory.h"
@@ -23,10 +23,9 @@ using namespace Mantid::Kernel;
 using namespace Mantid::Geometry;
 using namespace Mantid::API;
 using namespace Mantid::DataObjects;
-using std::map;
 
-typedef std::vector<Mantid::Kernel::Property *> VecProperties;
-typedef const VecProperties ConstVecProperties;
+using VecProperties = std::vector<Mantid::Kernel::Property *>;
+using ConstVecProperties = const VecProperties;
 
 namespace Mantid {
 namespace Algorithms {

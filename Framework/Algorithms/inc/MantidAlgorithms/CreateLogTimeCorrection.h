@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Mantid {
-namespace API {
+namespace Geometry {
 class DetectorInfo;
 }
 namespace Algorithms {
@@ -54,6 +54,9 @@ public:
   }
 
   int version() const override { return 1; }
+  const std::vector<std::string> seeAlso() const override {
+    return {"ChangePulsetime", "ShiftLogTime"};
+  }
   const std::string category() const override {
     return "Events\\EventFiltering";
   }
@@ -65,22 +68,21 @@ private:
   void exec() override;
 
   /// Log geometry information
-  void
-  logGeometryInformation(const Mantid::API::DetectorInfo &detectorInfo) const;
+  void logGeometryInformation(const Geometry::DetectorInfo &detectorInfo) const;
 
   /// Calculate the log time correction for each pixel, i.e., correcton from
   /// event time at detector to time at sample
   std::vector<double>
-  calculateCorrections(const Mantid::API::DetectorInfo &detectorInfo) const;
+  calculateCorrections(const Geometry::DetectorInfo &detectorInfo) const;
 
   /// Write L2 map and correction map to a TableWorkspace
   DataObjects::TableWorkspace_sptr
-  generateCorrectionTable(const Mantid::API::DetectorInfo &detectorInfo,
+  generateCorrectionTable(const Geometry::DetectorInfo &detectorInfo,
                           const std::vector<double> &corrections) const;
 
   /// Write correction map to a text file
   void writeCorrectionToFile(const std::string filename,
-                             const Mantid::API::DetectorInfo &detectorInfo,
+                             const Geometry::DetectorInfo &detectorInfo,
                              const std::vector<double> &corrections) const;
 };
 

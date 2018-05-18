@@ -10,6 +10,9 @@ class GetEiT0atSNS(mantid.api.PythonAlgorithm):
         """
         return "Inelastic\\Ei"
 
+    def seeAlso(self):
+        return [ "GetEi" ]
+
     def name(self):
         """ Return name
         """
@@ -83,5 +86,6 @@ class GetEiT0atSNS(mantid.api.PythonAlgorithm):
                 raise RuntimeError("Could not get Ei, and this is not a white beam run\n"+str(e))
         self.setProperty("Ei",Ei)
         self.setProperty("T0",Tzero)
+
 
 mantid.api.AlgorithmFactory.subscribe(GetEiT0atSNS)

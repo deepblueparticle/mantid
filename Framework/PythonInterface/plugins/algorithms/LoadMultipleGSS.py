@@ -14,6 +14,9 @@ class LoadMultipleGSS(PythonAlgorithm):
     def category(self):
         return "DataHandling\\Text"
 
+    def seeAlso(self):
+        return [ "LoadGSS" ]
+
     def name(self):
         return "LoadMultipleGSS"
 
@@ -57,5 +60,6 @@ class LoadMultipleGSS(PythonAlgorithm):
             wksp = "%s_%d" % (prefix,run)
             self.__load(directory, wksp)
             ConvertUnits(InputWorkspace=wksp, OutputWorkspace=wksp, Target="dSpacing")
+
 
 AlgorithmFactory.subscribe(LoadMultipleGSS)

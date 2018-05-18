@@ -4,7 +4,7 @@
 #include "MantidKernel/System.h"
 #include "MantidAPI/Algorithm.h"
 #include "MantidGeometry/Instrument.h"
-#include "MantidAPI/DetectorInfo.h"
+#include "MantidGeometry/Instrument/DetectorInfo.h"
 
 namespace Mantid {
 
@@ -30,6 +30,9 @@ public:
 
   /// Algorithm's version for identification
   int version() const override { return 1; };
+  const std::vector<std::string> seeAlso() const override {
+    return {"LoadIsawPeaks"};
+  }
   /// Algorithm's category for identification
   const std::string category() const override {
     return "Crystal\\DataHandling;DataHandling\\Isaw";
@@ -45,7 +48,7 @@ private:
   void sizeBanks(std::string bankName, int &NCOLS, int &NROWS, double &xsize,
                  double &ysize);
   bool bankMasked(Geometry::IComponent_const_sptr parent,
-                  const API::DetectorInfo &detectorInfo);
+                  const Geometry::DetectorInfo &detectorInfo);
   Geometry::Instrument_const_sptr inst;
 };
 
