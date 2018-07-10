@@ -42,7 +42,7 @@ def _applyIncidentEnergyCalibration(ws, wsType, eiWS, wsNames, report,
                  LogText=str(wavelength),
                  LogType='Number',
                  NumberType='Double',
-                 LogUnit='Ångström',
+                 LogUnit='Angstrom',
                  EnableLogging=algorithmLogging)
     report.notice("Applied Ei calibration to '" + str(ws) + "'.")
     report.notice('Original Ei: {} new Ei: {}.'.format(originalEnergy, energy))
@@ -65,16 +65,14 @@ def _calibratedIncidentEnergy(detWorkspace, detEPPWorkspace, monWorkspace, monEP
     instrument = detWorkspace.getInstrument().getName()
     eiWorkspace = None
     if instrument in ['IN4', 'IN6']:
-        eiCalibrationDets = [i for i in range(detWorkspace.getNumberHistograms())]
-        pulseInterval = detWorkspace.getRun().getLogData('pulse_interval').value
+        eiCalibrationDets = '0-299' if instrument == 'IN4' else '0-336'
         energy = GetEiMonDet(DetectorWorkspace=detWorkspace,
+                             DetectorWorkspaceIndexType='WorkspaceIndex',
+                             DetectorWorkspaceIndexSet=eiCalibrationDets,
                              DetectorEPPTable=detEPPWorkspace,
-                             IndexType='Workspace Index',
-                             Detectors=eiCalibrationDets,
                              MonitorWorkspace=monWorkspace,
                              MonitorEppTable=monEPPWorkspace,
                              Monitor=eiCalibrationMon,
-                             PulseInterval=pulseInterval,
                              EnableLogging=algorithmLogging)
         eiWSName = wsNames.withSuffix('incident_energy')
         eiWorkspace = CreateSingleValuedWorkspace(OutputWorkspace=eiWSName,
