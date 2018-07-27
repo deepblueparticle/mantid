@@ -183,7 +183,6 @@ void MantidWebServiceAPIHelper::initHTTPRequest(Poco::Net::HTTPRequest &req,
   delete m_session;
   m_session = nullptr;
 
-
   if (Poco::URI(m_serviceBaseUrl).getScheme() == "https") {
     // Create an HTTPS session
     // TODO: Notice that we've set the context to VERIFY_NONE. I think that

@@ -227,7 +227,6 @@ void annClose() // close use of ANN
 {
   delete KD_TRIVIAL;
   KD_TRIVIAL = nullptr;
-
 }
 
 //----------------------------------------------------------------------

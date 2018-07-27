@@ -71,22 +71,17 @@ AlgExecSummaryGrpBox::~AlgExecSummaryGrpBox() {
   delete m_execDurationlabel;
   m_execDurationlabel = nullptr;
 
-
   delete m_execDurationEdit;
   m_execDurationEdit = nullptr;
 
-
   delete m_Datelabel;
   m_Datelabel = nullptr;
 
-
   delete m_Datelabel;
   m_Datelabel = nullptr;
-
 
   delete m_execDateTimeEdit;
   m_execDateTimeEdit = nullptr;
-
 }
 void AlgExecSummaryGrpBox::setData(
     const double execDuration,
@@ -161,30 +156,23 @@ AlgEnvHistoryGrpBox::~AlgEnvHistoryGrpBox() {
   delete m_osNameLabel;
   m_osNameLabel = nullptr;
 
-
   delete m_osNameEdit;
   m_osNameEdit = nullptr;
 
-
   delete m_osNameEdit;
   m_osNameEdit = nullptr;
-
 
   delete m_osVersionLabel;
   m_osVersionLabel = nullptr;
 
-
   delete m_osVersionEdit;
   m_osVersionEdit = nullptr;
-
 
   delete m_frmworkVersionLabel;
   m_frmworkVersionLabel = nullptr;
 
-
   delete m_frmwkVersnEdit;
   m_frmwkVersnEdit = nullptr;
-
 }
 
 AlgorithmHistoryWindow::AlgorithmHistoryWindow(
@@ -297,18 +285,14 @@ AlgorithmHistoryWindow::~AlgorithmHistoryWindow() {
   delete m_Historytree;
   m_Historytree = nullptr;
 
-
   delete m_histPropWindow;
   m_histPropWindow = nullptr;
-
 
   delete m_execSumGrpBox;
   m_execSumGrpBox = nullptr;
 
-
   delete m_envHistGrpBox;
   m_envHistGrpBox = nullptr;
-
 }
 
 AlgExecSummaryGrpBox *AlgorithmHistoryWindow::createExecSummaryGrpBox() {

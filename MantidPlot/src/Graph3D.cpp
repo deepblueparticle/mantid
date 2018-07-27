@@ -2488,9 +2488,7 @@ void Graph3D::copy(Graph3D *g) {
   animate(g->isAnimated());
 }
 
-Graph3D::~Graph3D() {
-  delete d_surface;
-}
+Graph3D::~Graph3D() { delete d_surface; }
 
 MantidQt::API::IProjectSerialisable *
 Graph3D::loadFromProject(const std::string &lines, ApplicationWindow *app,

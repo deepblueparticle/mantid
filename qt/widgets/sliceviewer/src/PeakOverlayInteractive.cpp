@@ -75,7 +75,6 @@ void PeakOverlayInteractive::peakDisplayMode() {
 
   delete m_tool;
   m_tool = nullptr;
-
 }
 
 void PeakOverlayInteractive::mousePressEvent(QMouseEvent *e) {

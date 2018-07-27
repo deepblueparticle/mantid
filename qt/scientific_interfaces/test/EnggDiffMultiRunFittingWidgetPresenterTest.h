@@ -383,7 +383,6 @@ private:
                testing::Mock::VerifyAndClearExpectations(m_mockView));
 
     delete m_mockView;
-
   }
 };
 

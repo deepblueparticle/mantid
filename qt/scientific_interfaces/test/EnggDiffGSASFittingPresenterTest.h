@@ -379,7 +379,6 @@ private:
                testing::Mock::VerifyAndClearExpectations(m_mockViewPtr));
 
     delete m_mockViewPtr;
-
   }
 
   void setRefinementParamsExpectations(

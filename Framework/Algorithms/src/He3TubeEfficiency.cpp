@@ -42,10 +42,7 @@ He3TubeEfficiency::He3TubeEfficiency()
 }
 
 /// Destructor
-He3TubeEfficiency::~He3TubeEfficiency() {
-  delete m_progress;
-
-}
+He3TubeEfficiency::~He3TubeEfficiency() { delete m_progress; }
 
 /**
  * Declare algorithm properties

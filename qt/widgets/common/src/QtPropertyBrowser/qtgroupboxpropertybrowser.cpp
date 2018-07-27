@@ -292,7 +292,6 @@ void QtGroupBoxPropertyBrowserPrivate::propertyRemoved(QtBrowserItem *index) {
     m_children.removeAt(row);
   }
 
-
   delete item->widget;
   delete item->label;
   delete item->widgetLabel;

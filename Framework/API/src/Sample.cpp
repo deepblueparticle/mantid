@@ -410,7 +410,6 @@ int Sample::loadNexus(::NeXus::File *file, const std::string &group) {
 void Sample::clearOrientedLattice() {
   delete m_lattice;
   m_lattice = nullptr;
-
 }
 } // namespace API
 } // namespace Mantid

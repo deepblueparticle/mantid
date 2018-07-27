@@ -159,10 +159,8 @@ void ScriptEditor::setLexer(QsciLexer *codelexer) {
   }
   this->QsciScintilla::setLexer(codelexer);
 
-
   delete m_completer;
   m_completer = nullptr;
-
 
   m_completer = new QsciAPIs(codelexer);
 }

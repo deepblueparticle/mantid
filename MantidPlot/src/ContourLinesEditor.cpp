@@ -410,10 +410,7 @@ void ContourLinesEditor::showPenColumn(bool on) {
     table->hideColumn(1);
 }
 
-ContourLinesEditor::~ContourLinesEditor() {
-
-  delete penDialog;
-}
+ContourLinesEditor::~ContourLinesEditor() { delete penDialog; }
 
 template <class Widget>
 Widget *ContourLinesEditor::table_cellWidget(int i, int j) const {

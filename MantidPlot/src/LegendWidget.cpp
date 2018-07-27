@@ -622,7 +622,6 @@ void LegendWidget::mousePressEvent(QMouseEvent * /*e*/) {
   delete d_selector;
   d_selector = nullptr;
 
-
   Graph *g = (dynamic_cast<Graph *>(d_plot->parent()));
   if (!g)
     return;

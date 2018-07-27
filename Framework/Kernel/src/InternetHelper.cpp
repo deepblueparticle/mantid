@@ -104,7 +104,6 @@ InternetHelper::InternetHelper(const Kernel::ProxyInfo &proxy)
 InternetHelper::~InternetHelper() {
   delete m_request;
   delete m_response;
-
 }
 
 void InternetHelper::setupProxyOnSession(HTTPClientSession &session,
@@ -119,7 +118,6 @@ void InternetHelper::setupProxyOnSession(HTTPClientSession &session,
 void InternetHelper::createRequest(Poco::URI &uri) {
   delete m_request;
   delete m_response;
-
 
   m_request =
       new HTTPRequest(m_method, uri.getPathAndQuery(), HTTPMessage::HTTP_1_1);

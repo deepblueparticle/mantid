@@ -4564,7 +4564,6 @@ void Graph::setActiveTool(PlotToolInterface *tool) {
     return;
   }
 
-
   delete d_active_tool;
 
   d_active_tool = tool;
@@ -4577,10 +4576,8 @@ void Graph::disableTools() {
   if (drawLineActive())
     drawLine(false);
 
-
   delete d_active_tool;
   d_active_tool = nullptr;
-
 
   delete d_range_selector;
   d_range_selector = nullptr;
