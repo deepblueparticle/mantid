@@ -270,19 +270,19 @@ void EnggDiffFittingPresenter::fittingFinished() {
     g_log.notice() << "EnggDiffraction GUI: plotting of peaks for single peak "
                       "fits has completed. \n";
 
-    if (m_workerThread) {
-      delete m_workerThread;
-      m_workerThread = nullptr;
-    }
+
+    delete m_workerThread;
+    m_workerThread = nullptr;
+
 
   } else {
     // Fitting failed log and tidy up
     g_log.warning() << "The single peak fitting did not finish correctly. "
                        "Please check a focused file was selected.";
-    if (m_workerThread) {
+
       delete m_workerThread;
       m_workerThread = nullptr;
-    }
+
 
     m_view->showStatus(
         "Single peak fitting process did not complete successfully");

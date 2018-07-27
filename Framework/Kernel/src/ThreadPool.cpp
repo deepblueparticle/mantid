@@ -54,10 +54,8 @@ ThreadPool::ThreadPool(ThreadScheduler *scheduler, size_t numThreads,
 /** Destructor. Deletes the ThreadScheduler.
  */
 ThreadPool::~ThreadPool() {
-  if (m_scheduler)
-    delete m_scheduler;
-  if (m_prog)
-    delete m_prog;
+  delete m_scheduler;
+  delete m_prog;
 }
 
 //--------------------------------------------------------------------------------

@@ -846,8 +846,7 @@ void QtLineEditFactoryPrivate::slotRegExpChanged(QtProperty *property,
       newValidator = new QRegExpValidator(regExp, editor);
     }
     editor->setValidator(newValidator);
-    if (oldValidator)
-      delete oldValidator;
+    delete oldValidator;
     editor->blockSignals(false);
   }
 }

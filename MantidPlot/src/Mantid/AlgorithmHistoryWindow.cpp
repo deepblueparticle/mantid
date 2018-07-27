@@ -67,26 +67,26 @@ AlgExecSummaryGrpBox::AlgExecSummaryGrpBox(QString title, QWidget *w)
   setGeometry(5, 210, 205, 130);
 }
 AlgExecSummaryGrpBox::~AlgExecSummaryGrpBox() {
-  if (m_execDurationlabel) {
-    delete m_execDurationlabel;
-    m_execDurationlabel = nullptr;
-  }
-  if (m_execDurationEdit) {
-    delete m_execDurationEdit;
-    m_execDurationEdit = nullptr;
-  }
-  if (m_Datelabel) {
-    delete m_Datelabel;
-    m_Datelabel = nullptr;
-  }
-  if (m_Datelabel) {
-    delete m_Datelabel;
-    m_Datelabel = nullptr;
-  }
-  if (m_execDateTimeEdit) {
-    delete m_execDateTimeEdit;
-    m_execDateTimeEdit = nullptr;
-  }
+
+  delete m_execDurationlabel;
+  m_execDurationlabel = nullptr;
+
+
+  delete m_execDurationEdit;
+  m_execDurationEdit = nullptr;
+
+
+  delete m_Datelabel;
+  m_Datelabel = nullptr;
+
+
+  delete m_Datelabel;
+  m_Datelabel = nullptr;
+
+
+  delete m_execDateTimeEdit;
+  m_execDateTimeEdit = nullptr;
+
 }
 void AlgExecSummaryGrpBox::setData(
     const double execDuration,
@@ -157,34 +157,34 @@ AlgEnvHistoryGrpBox::AlgEnvHistoryGrpBox(QString title, QWidget *w)
   setGeometry(214, 210, 347, 130);
 }
 AlgEnvHistoryGrpBox::~AlgEnvHistoryGrpBox() {
-  if (m_osNameLabel) {
-    delete m_osNameLabel;
-    m_osNameLabel = nullptr;
-  }
-  if (m_osNameEdit) {
-    delete m_osNameEdit;
-    m_osNameEdit = nullptr;
-  }
-  if (m_osNameEdit) {
-    delete m_osNameEdit;
-    m_osNameEdit = nullptr;
-  }
-  if (m_osVersionLabel) {
-    delete m_osVersionLabel;
-    m_osVersionLabel = nullptr;
-  }
-  if (m_osVersionEdit) {
-    delete m_osVersionEdit;
-    m_osVersionEdit = nullptr;
-  }
-  if (m_frmworkVersionLabel) {
-    delete m_frmworkVersionLabel;
-    m_frmworkVersionLabel = nullptr;
-  }
-  if (m_frmwkVersnEdit) {
-    delete m_frmwkVersnEdit;
-    m_frmwkVersnEdit = nullptr;
-  }
+
+  delete m_osNameLabel;
+  m_osNameLabel = nullptr;
+
+
+  delete m_osNameEdit;
+  m_osNameEdit = nullptr;
+
+
+  delete m_osNameEdit;
+  m_osNameEdit = nullptr;
+
+
+  delete m_osVersionLabel;
+  m_osVersionLabel = nullptr;
+
+
+  delete m_osVersionEdit;
+  m_osVersionEdit = nullptr;
+
+
+  delete m_frmworkVersionLabel;
+  m_frmworkVersionLabel = nullptr;
+
+
+  delete m_frmwkVersnEdit;
+  m_frmwkVersnEdit = nullptr;
+
 }
 
 AlgorithmHistoryWindow::AlgorithmHistoryWindow(
@@ -293,22 +293,22 @@ AlgorithmHistoryWindow::AlgorithmHistoryWindow(
 }
 
 AlgorithmHistoryWindow::~AlgorithmHistoryWindow() {
-  if (m_Historytree) {
-    delete m_Historytree;
-    m_Historytree = nullptr;
-  }
-  if (m_histPropWindow) {
-    delete m_histPropWindow;
-    m_histPropWindow = nullptr;
-  }
-  if (m_execSumGrpBox) {
-    delete m_execSumGrpBox;
-    m_execSumGrpBox = nullptr;
-  }
-  if (m_envHistGrpBox) {
-    delete m_envHistGrpBox;
-    m_envHistGrpBox = nullptr;
-  }
+
+  delete m_Historytree;
+  m_Historytree = nullptr;
+
+
+  delete m_histPropWindow;
+  m_histPropWindow = nullptr;
+
+
+  delete m_execSumGrpBox;
+  m_execSumGrpBox = nullptr;
+
+
+  delete m_envHistGrpBox;
+  m_envHistGrpBox = nullptr;
+
 }
 
 AlgExecSummaryGrpBox *AlgorithmHistoryWindow::createExecSummaryGrpBox() {

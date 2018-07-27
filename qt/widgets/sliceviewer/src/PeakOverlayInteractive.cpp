@@ -72,10 +72,10 @@ void PeakOverlayInteractive::peakAdditionMode() {
 void PeakOverlayInteractive::peakDisplayMode() {
   captureMouseEvents(false /*pass through mouse events*/);
   QApplication::restoreOverrideCursor();
-  if (m_tool) {
-    delete m_tool;
-    m_tool = nullptr;
-  }
+
+  delete m_tool;
+  m_tool = nullptr;
+
 }
 
 void PeakOverlayInteractive::mousePressEvent(QMouseEvent *e) {

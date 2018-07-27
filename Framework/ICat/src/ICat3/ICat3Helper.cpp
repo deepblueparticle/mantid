@@ -194,8 +194,7 @@ void CICatHelper::saveInvestigationIncludesResponse(
           creationtime->assign(ftime);
         }
         savetoTableWorkspace(creationtime, t);
-        if (creationtime)
-          delete creationtime;
+        delete creationtime;
 
         //
         savetoTableWorkspace((*datafile_citr)->id, t);

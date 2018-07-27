@@ -65,8 +65,7 @@ CompAssembly::CompAssembly(const CompAssembly &assem)
 /** Destructor
  */
 CompAssembly::~CompAssembly() {
-  if (m_cachedBoundingBox)
-    delete m_cachedBoundingBox;
+  delete m_cachedBoundingBox;
   // Iterate over pointers in m_children, deleting them
   for (auto &child : m_children) {
     delete child;

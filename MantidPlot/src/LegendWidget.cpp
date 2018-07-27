@@ -619,10 +619,9 @@ PlotCurve *LegendWidget::getCurve(const QString &s, int &point) {
 }
 
 void LegendWidget::mousePressEvent(QMouseEvent * /*e*/) {
-  if (d_selector) {
-    delete d_selector;
-    d_selector = nullptr;
-  }
+  delete d_selector;
+  d_selector = nullptr;
+
 
   Graph *g = (dynamic_cast<Graph *>(d_plot->parent()));
   if (!g)
@@ -711,6 +710,6 @@ void LegendWidget::setFixedCoordinatesMode(bool on) {
 
 LegendWidget::~LegendWidget() {
   delete d_text;
-  if (d_selector)
-    delete d_selector;
+
+  delete d_selector;
 }

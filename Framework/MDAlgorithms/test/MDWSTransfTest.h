@@ -142,8 +142,7 @@ public:
     std::vector<double> minVal(4, -3), maxVal(4, 3);
     TWS.setMinMax(minVal, maxVal);
 
-    if (pLattice)
-      delete pLattice;
+    delete pLattice;
     pLattice =
         new Geometry::OrientedLattice(5 * M_PI, M_PI, 2 * M_PI, 90., 90., 90.);
     ws2D->mutableSample().setOrientedLattice(pLattice);

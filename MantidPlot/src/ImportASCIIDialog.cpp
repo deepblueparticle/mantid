@@ -313,15 +313,15 @@ void ImportASCIIDialog::initPreview(int previewMode) {
   if (!app)
     return;
 
-  if (d_preview_table) {
-    delete d_preview_table;
-    d_preview_table = nullptr;
-  }
 
-  if (d_preview_matrix) {
-    delete d_preview_matrix;
-    d_preview_matrix = nullptr;
-  }
+  delete d_preview_table;
+  d_preview_table = nullptr;
+
+
+
+  delete d_preview_matrix;
+  d_preview_matrix = nullptr;
+
 
   switch (previewMode) {
   case NewTables:

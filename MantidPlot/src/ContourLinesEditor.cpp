@@ -411,8 +411,8 @@ void ContourLinesEditor::showPenColumn(bool on) {
 }
 
 ContourLinesEditor::~ContourLinesEditor() {
-  if (penDialog)
-    delete penDialog;
+
+  delete penDialog;
 }
 
 template <class Widget>

@@ -211,10 +211,8 @@ void ANNkd_tree::getStats( // get tree statistics
 
 ANNkd_tree::~ANNkd_tree() // tree destructor
 {
-  if (root != nullptr)
-    delete root;
-  if (pidx != nullptr)
-    delete[] pidx;
+  delete root;
+  delete[] pidx;
   if (bnd_box_lo != nullptr)
     annDeallocPt(bnd_box_lo);
   if (bnd_box_hi != nullptr)
@@ -227,10 +225,9 @@ ANNkd_tree::~ANNkd_tree() // tree destructor
 //----------------------------------------------------------------------
 void annClose() // close use of ANN
 {
-  if (KD_TRIVIAL != nullptr) {
-    delete KD_TRIVIAL;
-    KD_TRIVIAL = nullptr;
-  }
+  delete KD_TRIVIAL;
+  KD_TRIVIAL = nullptr;
+
 }
 
 //----------------------------------------------------------------------

@@ -69,8 +69,7 @@ Sample &Sample::operator=(const Sample &rhs) {
   m_thick = rhs.m_thick;
   m_height = rhs.m_height;
   m_width = rhs.m_width;
-  if (m_lattice != nullptr)
-    delete m_lattice;
+  delete m_lattice;
   if (rhs.m_lattice)
     m_lattice = new OrientedLattice(rhs.getOrientedLattice());
   else
@@ -173,9 +172,7 @@ OrientedLattice &Sample::getOrientedLattice() {
  * @param latt :: A pointer to a OrientedLattice.
  */
 void Sample::setOrientedLattice(OrientedLattice *latt) {
-  if (m_lattice != nullptr) {
-    delete m_lattice;
-  }
+  delete m_lattice;
   if (latt != nullptr)
     m_lattice = new OrientedLattice(*latt);
   else
@@ -411,10 +408,9 @@ int Sample::loadNexus(::NeXus::File *file, const std::string &group) {
  * Delete the oriented lattice.
  */
 void Sample::clearOrientedLattice() {
-  if (m_lattice) {
-    delete m_lattice;
-    m_lattice = nullptr;
-  }
+  delete m_lattice;
+  m_lattice = nullptr;
+
 }
 } // namespace API
 } // namespace Mantid

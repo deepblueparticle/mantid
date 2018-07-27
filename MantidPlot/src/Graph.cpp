@@ -244,8 +244,8 @@ MultiLayer *Graph::multiLayer() {
 
 void Graph::deselectMarker() {
   selectedMarker = -1;
-  if (d_markers_selector)
-    delete d_markers_selector;
+
+  delete d_markers_selector;
 
   emit enableTextEditor(nullptr);
 
@@ -4564,8 +4564,8 @@ void Graph::setActiveTool(PlotToolInterface *tool) {
     return;
   }
 
-  if (d_active_tool)
-    delete d_active_tool;
+
+  delete d_active_tool;
 
   d_active_tool = tool;
 }
@@ -4577,21 +4577,21 @@ void Graph::disableTools() {
   if (drawLineActive())
     drawLine(false);
 
-  if (d_active_tool)
-    delete d_active_tool;
+
+  delete d_active_tool;
   d_active_tool = nullptr;
 
-  if (d_range_selector)
-    delete d_range_selector;
+
+  delete d_range_selector;
   d_range_selector = nullptr;
 }
 
 bool Graph::enableRangeSelectors(const QObject *status_target,
                                  const char *status_slot) {
-  if (d_range_selector) {
-    delete d_range_selector;
-    d_range_selector = nullptr;
-  }
+
+  delete d_range_selector;
+  d_range_selector = nullptr;
+
   d_range_selector = new RangeSelectorTool(this, status_target, status_slot);
   setActiveTool(d_range_selector);
   connect(d_range_selector, SIGNAL(changed()), this,
@@ -4846,14 +4846,14 @@ bool Graph::validCurvesDataSize() {
 
 Graph::~Graph() {
   setActiveTool(nullptr);
-  if (d_range_selector)
-    delete d_range_selector;
-  if (d_peak_fit_tool)
-    delete d_peak_fit_tool;
-  if (d_magnifier)
-    delete d_magnifier;
-  if (d_panner)
-    delete d_panner;
+
+  delete d_range_selector;
+
+  delete d_peak_fit_tool;
+
+  delete d_magnifier;
+
+  delete d_panner;
   delete titlePicker;
   delete scalePicker;
   delete cp;
@@ -5359,10 +5359,10 @@ void Graph::changeIntensity(bool bIntensityChanged) {
  * @param on :: boolean parameter to switch on zooming
  */
 void Graph::enablePanningMagnifier(bool on) {
-  if (d_magnifier)
-    delete d_magnifier;
-  if (d_panner)
-    delete d_panner;
+
+  delete d_magnifier;
+
+  delete d_panner;
 
   QwtPlotCanvas *cnvs = d_plot->canvas(); // canvas();
   if (on) {
@@ -5398,8 +5398,8 @@ bool Graph::isFixedAspectRatioEnabled() {
  */
 void Graph::enableFixedAspectRatio(bool on) {
 #if QWT_VERSION >= 0x050200
-  if (d_rescaler)
-    delete d_rescaler;
+
+  delete d_rescaler;
 
   QwtPlotCanvas *cnvs = d_plot->canvas();
   if (on) {

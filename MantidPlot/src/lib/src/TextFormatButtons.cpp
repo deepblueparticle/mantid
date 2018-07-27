@@ -50,8 +50,7 @@ void TextFormatButtons::init(Buttons buttons) {
   QHBoxLayout *layout = (QHBoxLayout *)this->layout();
   QLayoutItem *child;
   while ((child = layout->takeAt(0)) != nullptr) {
-    if (child->widget())
-      delete child->widget();
+    delete child->widget();
   }
 
   QFont font = QFont();

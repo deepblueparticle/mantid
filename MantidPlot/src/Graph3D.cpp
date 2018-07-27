@@ -244,8 +244,8 @@ void Graph3D::initCoord() {
 void Graph3D::addFunction(Function2D *hfun, double xl, double xr, double yl,
                           double yr, double zl, double zr, size_t columns,
                           size_t rows) {
-  if (d_surface)
-    delete d_surface;
+
+  delete d_surface;
 
   sp->makeCurrent();
   sp->resize(this->size());
@@ -2489,8 +2489,7 @@ void Graph3D::copy(Graph3D *g) {
 }
 
 Graph3D::~Graph3D() {
-  if (d_surface)
-    delete d_surface;
+  delete d_surface;
 }
 
 MantidQt::API::IProjectSerialisable *

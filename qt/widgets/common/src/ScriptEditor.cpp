@@ -108,9 +108,9 @@ ScriptEditor::ScriptEditor(QWidget *parent, QsciLexer *codelexer,
  * Destructor
  */
 ScriptEditor::~ScriptEditor() {
-  if (m_completer) {
-    delete m_completer;
-  }
+
+  delete m_completer;
+
   if (QsciLexer *current = lexer()) {
     delete current;
   }
@@ -146,10 +146,10 @@ void ScriptEditor::writeSettings() {}
  */
 void ScriptEditor::setLexer(QsciLexer *codelexer) {
   if (!codelexer) {
-    if (m_completer) {
-      delete m_completer;
-      m_completer = nullptr;
-    }
+
+    delete m_completer;
+    m_completer = nullptr;
+
     return;
   }
 
@@ -159,10 +159,10 @@ void ScriptEditor::setLexer(QsciLexer *codelexer) {
   }
   this->QsciScintilla::setLexer(codelexer);
 
-  if (m_completer) {
-    delete m_completer;
-    m_completer = nullptr;
-  }
+
+  delete m_completer;
+  m_completer = nullptr;
+
 
   m_completer = new QsciAPIs(codelexer);
 }

@@ -86,9 +86,9 @@ void LevenbergMarquardtMinimizer::initialize(
 }
 
 LevenbergMarquardtMinimizer::~LevenbergMarquardtMinimizer() {
-  if (m_data) {
-    delete m_data;
-  }
+
+  delete m_data;
+
   if (m_gslSolver) {
     gsl_multifit_fdfsolver_free(m_gslSolver);
   }

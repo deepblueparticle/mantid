@@ -381,9 +381,9 @@ private:
     TSM_ASSERT("Model mock not used as expected: some EXPECT_CALL conditions "
                "not satisfied",
                testing::Mock::VerifyAndClearExpectations(m_mockView));
-    if (m_mockView) {
-      delete m_mockView;
-    }
+
+    delete m_mockView;
+
   }
 };
 

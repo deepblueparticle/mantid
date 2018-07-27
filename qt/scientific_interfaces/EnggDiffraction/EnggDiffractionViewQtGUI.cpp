@@ -258,8 +258,8 @@ void EnggDiffractionViewQtGUI::doSetupGeneralWidgets() {
 }
 
 void EnggDiffractionViewQtGUI::doSetupSplashMsg() {
-  if (m_splashMsg)
-    delete m_splashMsg;
+
+  delete m_splashMsg;
 
   m_splashMsg = new QMessageBox(this);
   m_splashMsg->setIcon(QMessageBox::Information);

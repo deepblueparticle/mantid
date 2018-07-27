@@ -30,9 +30,9 @@ public:
     TS_ASSERT(fun);
     TS_ASSERT(fun->getWorkspace());
 
-    if (fun) {
-      delete fun;
-    }
+
+    delete fun;
+
   }
 };
 

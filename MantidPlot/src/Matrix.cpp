@@ -254,10 +254,10 @@ void Matrix::restore(const QStringList &lst) {
   }
 
   if (d_view_type == ImageView) {
-    if (d_table_view)
-      delete d_table_view;
-    if (d_select_all_shortcut)
-      delete d_select_all_shortcut;
+
+    delete d_table_view;
+
+    delete d_select_all_shortcut;
     initImageView();
     d_stack->setCurrentWidget(imageLabel);
     if (d_color_map_type == Rainbow)
@@ -1176,10 +1176,10 @@ void Matrix::copy(Matrix *m) {
   d_color_map = m->colorMap();
 
   if (d_view_type == ImageView) {
-    if (d_table_view)
-      delete d_table_view;
-    if (d_select_all_shortcut)
-      delete d_select_all_shortcut;
+
+    delete d_table_view;
+
+    delete d_select_all_shortcut;
     initImageView();
     d_stack->setCurrentWidget(imageLabel);
   }

@@ -132,15 +132,11 @@ ProjectionSurface::ProjectionSurface(const InstrumentActor *rootActor)
 }
 
 ProjectionSurface::~ProjectionSurface() {
-  if (m_viewImage) {
-    delete m_viewImage;
-  }
-  if (m_pickImage) {
-    delete m_pickImage;
-  }
+  delete m_viewImage;
+  delete m_pickImage;
+
   for (int i = 0; i < m_peakShapes.size(); ++i) {
-    if (m_peakShapes[i])
-      delete m_peakShapes[i];
+    delete m_peakShapes[i];
   }
   m_peakShapes.clear();
 }
@@ -155,14 +151,12 @@ void ProjectionSurface::resetInstrumentActor(const InstrumentActor *rootActor) {
 }
 
 void ProjectionSurface::clear() {
-  if (m_viewImage) {
-    delete m_viewImage;
-    m_viewImage = nullptr;
-  }
-  if (m_pickImage) {
-    delete m_pickImage;
-    m_pickImage = nullptr;
-  }
+  delete m_viewImage;
+  m_viewImage = nullptr;
+
+  delete m_pickImage;
+  m_pickImage = nullptr;
+
   m_viewChanged = true;
   m_redrawPicking = true;
   m_viewRect = RectF();
@@ -204,9 +198,8 @@ void ProjectionSurface::draw(MantidGLWidget *widget, bool picking) const {
 
     this->drawSurface(widget, picking);
 
-    if (*image) {
-      delete (*image);
-    }
+    delete (*image);
+
     (*image) = new QImage(widget->grabFrameBuffer());
 
     if (!picking) {
@@ -245,12 +238,10 @@ void ProjectionSurface::drawSimple(QWidget *widget) const {
   if (m_viewChanged) {
     if (!m_viewImage || m_viewImage->width() != widget->width() ||
         m_viewImage->height() != widget->height()) {
-      if (m_viewImage)
-        delete m_viewImage;
+      delete m_viewImage;
       m_viewImage =
           new QImage(widget->width(), widget->height(), QImage::Format_RGB32);
-      if (m_pickImage)
-        delete m_pickImage;
+      delete m_pickImage;
       m_pickImage =
           new QImage(widget->width(), widget->height(), QImage::Format_RGB32);
     }

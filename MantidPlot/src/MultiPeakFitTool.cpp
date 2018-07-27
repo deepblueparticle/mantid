@@ -73,10 +73,9 @@ MultiPeakFitTool::MultiPeakFitTool(Graph *graph, ApplicationWindow *app,
 }
 
 MultiPeakFitTool::~MultiPeakFitTool() {
-  if (d_picker_tool)
-    delete d_picker_tool;
-  if (d_fit)
-    delete d_fit;
+
+  delete d_picker_tool;
+  delete d_fit;
 }
 
 void MultiPeakFitTool::selectPeak(QwtPlotCurve *curve, int point_index) {

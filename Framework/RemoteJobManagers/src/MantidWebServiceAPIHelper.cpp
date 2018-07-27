@@ -180,10 +180,9 @@ void MantidWebServiceAPIHelper::initHTTPRequest(Poco::Net::HTTPRequest &req,
                                                 std::string extraPath,
                                                 std::string queryString) const {
   // Set up the session object
-  if (m_session) {
-    delete m_session;
-    m_session = nullptr;
-  }
+  delete m_session;
+  m_session = nullptr;
+
 
   if (Poco::URI(m_serviceBaseUrl).getScheme() == "https") {
     // Create an HTTPS session

@@ -377,9 +377,9 @@ private:
     TSM_ASSERT("Model mock not used as expected: some EXPECT_CALL conditions "
                "not satisfied",
                testing::Mock::VerifyAndClearExpectations(m_mockViewPtr));
-    if (m_mockViewPtr) {
-      delete m_mockViewPtr;
-    }
+
+    delete m_mockViewPtr;
+
   }
 
   void setRefinementParamsExpectations(

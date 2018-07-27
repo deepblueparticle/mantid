@@ -67,8 +67,8 @@ SpectrumView::SpectrumView(QWidget *parent)
 
 SpectrumView::~SpectrumView() {
   saveSettings();
-  if (m_emodeHandler)
-    delete m_emodeHandler;
+
+  delete m_emodeHandler;
 }
 
 /**
