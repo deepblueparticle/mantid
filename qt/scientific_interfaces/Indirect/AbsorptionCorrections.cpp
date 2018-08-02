@@ -18,7 +18,7 @@ MatrixWorkspace_sptr convertUnits(MatrixWorkspace_sptr workspace,
                                   const std::string &target) {
   auto convertAlg = AlgorithmManager::Instance().create("ConvertUnits");
   convertAlg->initialize();
-  convertAlg->setChild(true);
+  convertAlg->setAlwaysStoreInADS(false);
   convertAlg->setProperty("InputWorkspace", workspace);
   convertAlg->setProperty("OutputWorkspace", "__converted");
   convertAlg->setProperty(
@@ -34,7 +34,7 @@ WorkspaceGroup_sptr
 groupWorkspaces(const std::vector<std::string> &workspaceNames) {
   auto groupAlg = AlgorithmManager::Instance().create("GroupWorkspaces");
   groupAlg->initialize();
-  groupAlg->setChild(true);
+  groupAlg->setAlwaysStoreInADS(false);
   groupAlg->setProperty("InputWorkspaces", workspaceNames);
   groupAlg->setProperty("OutputWorkspace", "__grouped");
   groupAlg->execute();
