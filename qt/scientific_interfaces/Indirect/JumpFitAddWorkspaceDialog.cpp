@@ -14,12 +14,17 @@ JumpFitAddWorkspaceDialog::JumpFitAddWorkspaceDialog(QWidget *parent)
 
   connect(m_uiForm.dsWorkspace, SIGNAL(dataReady(const QString &)), this,
           SLOT(emitWorkspaceChanged(const QString &)));
-  connect(m_uiForm.cbParameterType, SIGNAL(currentIndexChanged(int)), this,
-          SLOT(emitParameterTypeChanged(int)));
+  connect(m_uiForm.cbParameterType,
+          SIGNAL(currentIndexChanged(const QString &)), this,
+          SLOT(emitParameterTypeChanged(const QString &)));
 }
 
 std::string JumpFitAddWorkspaceDialog::workspaceName() const {
   return m_uiForm.dsWorkspace->getCurrentDataName().toStdString();
+}
+
+std::string JumpFitAddWorkspaceDialog::parameterType() const {
+  return m_uiForm.cbParameterType->currentText().toStdString();
 }
 
 int JumpFitAddWorkspaceDialog::parameterNameIndex() const {
@@ -63,8 +68,8 @@ void JumpFitAddWorkspaceDialog::emitWorkspaceChanged(const QString &name) {
   emit workspaceChanged(this, name.toStdString());
 }
 
-void JumpFitAddWorkspaceDialog::emitParameterTypeChanged(int type) {
-  emit parameterTypeChanged(this, type);
+void JumpFitAddWorkspaceDialog::emitParameterTypeChanged(const QString &type) {
+  emit parameterTypeChanged(this, type.toStdString());
 }
 
 } // namespace IDA
