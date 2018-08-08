@@ -659,7 +659,7 @@ void IndirectFitAnalysisTab::updateSingleFitOutput(bool error) {
     m_fittingModel->addSingleFitOutput(m_fittingAlgorithm, 0);
 }
 
-/*
+/*`
  * Performs necessary state changes when the fit algorithm was run
  * and completed within this interface.
  */
@@ -803,6 +803,9 @@ bool IndirectFitAnalysisTab::validate() {
   const auto invalidFunction = m_fittingModel->isInvalidFunction();
   if (invalidFunction)
     validator.addErrorMessage(QString::fromStdString(*invalidFunction));
+  if (m_fittingModel->numberOfWorkspaces() == 0)
+    validator.addErrorMessage(
+        QString::fromStdString("No data has been selected for a fit."));
 
   const auto error = validator.generateErrorMessage();
   emit showMessageBox(error);
