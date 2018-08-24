@@ -206,6 +206,7 @@ void JumpFitModel::addWorkspace(Mantid::API::MatrixWorkspace_sptr workspace,
 }
 
 void JumpFitModel::removeWorkspace(std::size_t index) {
+  m_jumpParameters.erase(getWorkspace(index)->getName());
   IndirectFittingModel::removeFittingData(index);
 }
 
